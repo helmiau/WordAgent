@@ -16,7 +16,6 @@
   English | <a href="README.zh-CN.md">中文文档</a>
 </p>
 
-> [!INFO]
 > If the WPS add-in freezes on recent Windows versions, switch the window management mode to multi-component mode in Settings. See [issue #1](https://github.com/visresearch/WordAgent/issues/1) for details.
 
 ## 1. Project Overview
