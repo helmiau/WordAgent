@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.6.1]
+
+### Added
+- 后端添加dashboard面板，统计token使用情况
+
+### Changed
+- 更新py依赖
+- 修改README和web文档
+
+### Fixed
+- 修复Microsoft word加载项manifest无效问题
+- 修复dashboard查询数据库移到QThreadPool
+- 修复异步长期记忆提取问题
+- 修复每次请求创建独立ThreadPoolExecutor，停止对话后可能出现孤儿线程的bug
+
 ## [v0.6.0]
 
 ### Added

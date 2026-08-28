@@ -4,6 +4,7 @@ import asyncio
 import concurrent.futures
 import json
 import re
+import threading
 import time
 import traceback
 import uuid
@@ -17,6 +18,7 @@ from langchain_core.messages import (
     HumanMessage,
     ToolMessage,
 )
+from langchain_core.messages.utils import count_tokens_approximately
 
 from app.core.logging import get_logger
 from app.services.agent.prompts import get_core_prompts
@@ -30,6 +32,8 @@ from app.services.agent.tools import (
     is_stop_requested,
     load_mcp_tools,
     register_loop,
+    register_stop_event,
+    unregister_stop_event,
 )
 from app.services.document import (
     build_document_name_by_id,
@@ -40,11 +44,26 @@ from app.services.llm_client import init_chat_model_with_reasoning, resolve_mode
 from app.services.memory import build_runtime_thread_id
 from app.services.middleware import MAX_CONTEXT_TOKENS, build_agent_middleware
 from app.services.tools.tool_log import build_tool_json, set_current_tool_log
+from app.services.token_usage import normalize_usage_metadata
 from app.services.utils import try_init_langsmith
 
 logger = get_logger(__name__)
 
 MAX_CHECKPOINT_IMAGE_BYTES = 512 * 1024
+
+
+def _message_token_usage(message) -> dict[str, int]:
+    """Merge normalized and provider-specific raw usage from a streamed message."""
+    result = normalize_usage_metadata(getattr(message, "usage_metadata", None))
+    response_metadata = getattr(message, "response_metadata", None)
+    if not isinstance(response_metadata, dict):
+        return result
+    for field in ("raw_token_usage", "token_usage", "usage"):
+        fallback = normalize_usage_metadata(response_metadata.get(field))
+        for key in result:
+            if result[key] <= 0 and fallback[key] > 0:
+                result[key] = fallback[key]
+    return result
 
 
 def _attachment_size_bytes(attachment: dict, file_id: str) -> int | None:
@@ -452,6 +471,14 @@ async def process_writing_request_stream(
     document_name_by_id = build_document_name_by_id(meta_list)
     document_meta_for_context = meta_list[0] if len(meta_list) == 1 else meta_list
     executor: concurrent.futures.ThreadPoolExecutor | None = None
+    stream_future: concurrent.futures.Future | None = None
+    stop_event = threading.Event()
+    if chat_id:
+        register_stop_event(chat_id, stop_event)
+        # The WebSocket may have been stopped before the worker reached this
+        # point; inherit that already-recorded stop request.
+        if is_stop_requested(chat_id):
+            stop_event.set()
 
     try:
         # Checkpointer 自动恢复历史；本轮只提交当前用户消息。
@@ -578,6 +605,8 @@ async def process_writing_request_stream(
         _pending_text_chunks: list[str] = []
         _agent_turn_count = 0
         _last_input_tokens = 0
+        _request_token_usage = {"input_tokens": 0, "output_tokens": 0, "cached_tokens": 0}
+        _chunk_token_usage = {"input_tokens": 0, "output_tokens": 0, "cached_tokens": 0}
         _conversation_history: list = list(messages)
 
         # LangSmith tracing
@@ -630,13 +659,15 @@ async def process_writing_request_stream(
                 max_attempts = 3 if image_content_parts else 2
                 image_fallback_applied = False
                 for attempt in range(1, max_attempts + 1):
+                    if stop_event.is_set():
+                        break
                     has_any_stream_item = False
                     try:
                         response = app.stream(**stream_kwargs)
 
                         for stream_item in response:
                             has_any_stream_item = True
-                            if chat_id and is_stop_requested(chat_id):
+                            if stop_event.is_set() or (chat_id and is_stop_requested(chat_id)):
                                 logger.warning(f"[Agent] ⛔ 检测到停止信号，结束流式处理 (session={chat_id})")
                                 break
                             asyncio.run_coroutine_threadsafe(queue.put(stream_item), loop)
@@ -655,7 +686,8 @@ async def process_writing_request_stream(
                             raise
                         if attempt < max_attempts and (not has_any_stream_item) and _is_transient_stream_error(e):
                             logger.error(f"[Agent] ⚠️ 流式连接异常（第 {attempt} 次）: {e}，准备重试")
-                            time.sleep(0.5)
+                            if stop_event.wait(0.5):
+                                break
                             continue
                         raise
             except Exception as e:
@@ -664,10 +696,12 @@ async def process_writing_request_stream(
 
         # 在线程池中启动
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        executor.submit(run_stream)
+        stream_future = executor.submit(run_stream)
 
         # 从队列中消费流式数据
         while True:
+            if stop_event.is_set() and queue.empty():
+                break
             stream_item = await queue.get()
 
             if stream_item is None:
@@ -708,9 +742,11 @@ async def process_writing_request_stream(
                 # AIMessage：完整响应，追踪历史和 token
                 if isinstance(msg, AIMessage):
                     _conversation_history.append(msg)
-                    usage = getattr(msg, "usage_metadata", None)
-                    if isinstance(usage, dict) and "input_tokens" in usage and usage.get("input_tokens", 0) > 0:
-                        _last_input_tokens = int(usage.get("input_tokens", 0))
+                    normalized_usage = _message_token_usage(msg)
+                    for key in _request_token_usage:
+                        _request_token_usage[key] += normalized_usage[key]
+                    if normalized_usage["input_tokens"] > 0:
+                        _last_input_tokens = normalized_usage["input_tokens"]
                         tokens_k = _last_input_tokens / 1000
                         logger.info(f"[Agent] 当前上下文: {tokens_k:.1f}k tokens")
                         yield f"data: {json.dumps({'type': 'token_stats', 'current_tokens': _last_input_tokens, 'max_tokens': MAX_CONTEXT_TOKENS}, ensure_ascii=False)}\n\n"
@@ -721,6 +757,12 @@ async def process_writing_request_stream(
 
                 # AIMessageChunk：流式中间块，先缓冲文本；如果本轮随后发起工具调用则丢弃
                 if isinstance(msg, AIMessageChunk):
+                    # Some OpenAI-compatible providers attach usage to the final
+                    # streaming chunk instead of emitting a complete AIMessage.
+                    normalized_chunk_usage = _message_token_usage(msg)
+                    if any(normalized_chunk_usage.values()):
+                        for key in _chunk_token_usage:
+                            _chunk_token_usage[key] += normalized_chunk_usage[key]
                     if getattr(msg, "tool_call_chunks", None) or getattr(msg, "tool_calls", None):
                         _pending_text_chunks.clear()
                         continue
@@ -842,6 +884,24 @@ async def process_writing_request_stream(
 
         # 返回完整对话（供记忆提取使用）和工具日志（供后端持久化使用）
         conversation_for_memory = {"user": user_content, "assistant": assistant_content}
+        final_token_usage = dict(_request_token_usage if any(_request_token_usage.values()) else _chunk_token_usage)
+        # A few OpenAI-compatible gateways omit usage in streaming responses.
+        # Keep the dashboard useful with a conservative LangChain estimate.
+        if final_token_usage["input_tokens"] <= 0:
+            final_token_usage["input_tokens"] = count_tokens_approximately(
+                messages, use_usage_metadata_scaling=False
+            )
+        if final_token_usage["output_tokens"] <= 0 and assistant_content:
+            final_token_usage["output_tokens"] = count_tokens_approximately(
+                [AIMessage(content=assistant_content)], use_usage_metadata_scaling=False
+            )
+        logger.info(
+            "[Agent] Token usage: input=%s output=%s cache_read=%s",
+            final_token_usage["input_tokens"],
+            final_token_usage["output_tokens"],
+            final_token_usage["cached_tokens"],
+        )
+        yield f"__token_usage__: {json.dumps(final_token_usage, ensure_ascii=False)}\n\n"
         yield f"__memory_conversation__: {json.dumps(conversation_for_memory, ensure_ascii=False)}\n\n"
         yield f"__tool_json__: {json.dumps(build_tool_json(tool_log), ensure_ascii=False)}\n\n"
 
@@ -853,5 +913,10 @@ async def process_writing_request_stream(
         yield f"data: {json.dumps({'type': 'error', 'content': _friendly_agent_error_message(e)}, ensure_ascii=False)}\n\n"
         yield "data: [DONE]\n\n"
     finally:
+        stop_event.set()
+        if stream_future is not None:
+            stream_future.cancel()
         if executor is not None:
             executor.shutdown(wait=False, cancel_futures=True)
+        if chat_id:
+            unregister_stop_event(chat_id, stop_event)

@@ -18,6 +18,7 @@ from app.core.config import settings
 from app.core.db import close_db, init_db
 from app.core.logging import get_logger
 from app.services.agent.skills import sync_builtin_skills
+from app.services.background_tasks import background_tasks
 from app.services.memory import open_checkpointer
 
 logger = get_logger(__name__)
@@ -77,8 +78,12 @@ async def lifespan(app: FastAPI):
 
         async with open_checkpointer() as checkpointer:
             app.state.checkpointer = checkpointer
+            app.state.background_tasks = background_tasks
             logger.info("LangGraph Checkpointer 已初始化")
-            yield
+            try:
+                yield
+            finally:
+                await background_tasks.shutdown()
     except Exception as e:
         logger.exception("应用生命周期异常: %s", e)
         raise

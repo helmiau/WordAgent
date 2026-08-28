@@ -360,6 +360,14 @@ class ChatOpenAI(_BaseChatOpenAI):
         if generation_chunk is None:
             return None
 
+        # LangChain normalizes OpenAI's prompt_tokens_details.cached_tokens,
+        # but some compatible providers (notably DeepSeek) expose cache hits
+        # only as top-level custom fields. Preserve the raw usage for the
+        # accounting layer instead of losing those provider extensions.
+        raw_usage = chunk.get("usage")
+        if isinstance(raw_usage, dict):
+            generation_chunk.message.response_metadata["raw_token_usage"] = dict(raw_usage)
+
         # 从原始 chunk 中提取 reasoning_content
         choices = chunk.get("choices", []) or chunk.get("chunk", {}).get("choices", [])
         if choices:
@@ -715,6 +723,9 @@ def _resolve_llm_params(model_name: str, enable_thinking: bool = False) -> dict:
     else:
         kwargs["model_provider"] = "openai"
         kwargs["base_url"] = provider_info.base_url
+        # OpenAI-compatible streaming APIs return usage only when explicitly
+        # requested through stream_options.include_usage.
+        kwargs["stream_usage"] = True
         if proxy_url:
             import httpx
 

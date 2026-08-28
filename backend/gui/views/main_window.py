@@ -25,6 +25,7 @@ from .home_interface import HomeInterface
 from .wps_install_interface import InstallInterface
 from .office_install_interface import OfficeInstallInterface
 from .console_interface import ConsoleInterface
+from .dashboard_interface import DashboardInterface
 
 
 def _icon_path(name: str) -> str:
@@ -108,11 +109,13 @@ class MainWindow(QMainWindow):
         self._stack = QStackedWidget()
 
         self._homeInterface = HomeInterface(self)
+        self._dashboardInterface = DashboardInterface(self)
         self._installInterface = InstallInterface(self)
         self._officeInstallInterface = OfficeInstallInterface(self)
         self._consoleInterface = ConsoleInterface(self)
 
         self._stack.addWidget(self._homeInterface)
+        self._stack.addWidget(self._dashboardInterface)
         self._stack.addWidget(self._installInterface)
         self._stack.addWidget(self._officeInstallInterface)
         self._stack.addWidget(self._consoleInterface)
@@ -124,6 +127,13 @@ class MainWindow(QMainWindow):
             text="主页",
             onClick=lambda: self._switchPage(self._homeInterface),
             position=NavigationItemPosition.TOP,
+        )
+        self._nav.addItem(
+            routeKey="dashboardInterface",
+            icon=QIcon(_icon_path("dashboard.svg")),
+            text="仪表盘",
+            onClick=lambda: self._switchPage(self._dashboardInterface),
+            position=NavigationItemPosition.BOTTOM,
         )
         self._nav.addItem(
             routeKey="installInterface",

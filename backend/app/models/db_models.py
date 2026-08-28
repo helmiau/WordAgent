@@ -7,7 +7,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Column, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import JSON, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.core.db import Base
@@ -111,3 +111,27 @@ class ChatMessage(Base):
             "attachedFiles": self.attached_files,
             "createdAt": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class TokenDaily(Base):
+    """Hourly token buckets for the current local day."""
+
+    __tablename__ = "token_daily"
+
+    bucket_time = Column(DateTime, primary_key=True)
+    input_tokens = Column(Integer, nullable=False, default=0)
+    output_tokens = Column(Integer, nullable=False, default=0)
+    cached_tokens = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+
+class TokenWeekly(Base):
+    """Daily token buckets for the latest seven local calendar days."""
+
+    __tablename__ = "token_weekly"
+
+    usage_date = Column(Date, primary_key=True)
+    input_tokens = Column(Integer, nullable=False, default=0)
+    output_tokens = Column(Integer, nullable=False, default=0)
+    cached_tokens = Column(Integer, nullable=False, default=0)
+    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)

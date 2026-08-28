@@ -6,3 +6,4 @@ from .main_window import MainWindow
 from .home_interface import HomeInterface
 from .wps_install_interface import InstallInterface
 from .console_interface import ConsoleInterface
+from .dashboard_interface import DashboardInterface

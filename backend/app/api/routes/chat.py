@@ -22,8 +22,10 @@ from app.services.agent.tools import (
     request_stop,
     clear_stop,
 )
+from app.services.background_tasks import background_tasks
 from app.services.memory import single_agent_thread_lock
 from app.services.session_service import SessionService
+from app.services.token_usage import record_token_usage
 from app.services.utils import _get_env_int, normalize_uuid
 
 logger = get_logger(__name__)
@@ -40,6 +42,36 @@ IDLE_ABORT_SECONDS = max(
 # 应用层 keepalive：长 LLM 思考期间，每隔 KEEPALIVE_INTERVAL 秒推一条 ping
 # 防止 WPS WebView / 中间代理因连接长时间空闲而强制关闭 WebSocket。
 KEEPALIVE_INTERVAL = 20
+
+
+def _extract_long_term_memory_sync(memory_conversation: dict | None, model: str, provider: str) -> None:
+    """Run the entirely synchronous memory extraction pipeline in a worker thread."""
+    from app.services.llm_client import create_sync_llm_client
+    from app.services.memory import (
+        MEMORY_EXTRACT_TEMPERATURE,
+        extract_and_save_memory,
+        is_long_term_memory_enabled,
+    )
+
+    if not is_long_term_memory_enabled():
+        logger.info("[WebSocket] 长期记忆开关关闭，跳过自动提取")
+        return
+
+    if not (
+        isinstance(memory_conversation, dict)
+        and str(memory_conversation.get("user", "")).strip()
+        and str(memory_conversation.get("assistant", "")).strip()
+    ):
+        logger.info("[WebSocket] 跳过长期记忆提取：未收到本轮完整 user/assistant 对话")
+        return
+
+    conversation = (
+        f"USER: {memory_conversation.get('user', '')}\n\n"
+        f"ASSISTANT: {memory_conversation.get('assistant', '')}"
+    )
+    sync_llm = create_sync_llm_client(model, provider, temperature=MEMORY_EXTRACT_TEMPERATURE)
+    if sync_llm:
+        extract_and_save_memory(conversation, sync_llm)
 
 
 def _normalize_mode(mode: str | None) -> str:
@@ -735,6 +767,7 @@ async def _run_ws_stream(
 
             keepalive_task = asyncio.create_task(_keepalive())
             memory_conversation: dict | None = None
+            token_usage = {"input_tokens": 0, "output_tokens": 0, "cached_tokens": 0}
 
             try:
                 async for chunk in _iterate_with_idle_watchdog(stream_iter, _on_idle_warn, _on_idle_abort):
@@ -752,6 +785,14 @@ async def _run_ws_stream(
                             except Exception:
                                 pass
                             await _send(payload)
+                    elif chunk.startswith("__token_usage__:"):
+                        raw = chunk.split(":", 1)[1].strip()
+                        try:
+                            parsed = json.loads(raw)
+                            if isinstance(parsed, dict):
+                                token_usage = parsed
+                        except Exception as e:
+                            logger.error(f"[WebSocket] 解析 token usage 失败: {e}")
                     elif chunk.startswith("__memory_conversation__:"):
                         raw = chunk.split(":", 1)[1].strip()
                         try:
@@ -779,42 +820,22 @@ async def _run_ws_stream(
                 except (asyncio.CancelledError, Exception):
                     pass
 
-            # 异步提取长期记忆（不阻塞前端）
-            async def _extract_memory_async():
-                try:
-                    from app.services.memory import (
-                        extract_and_save_memory,
-                        is_long_term_memory_enabled,
-                        MEMORY_EXTRACT_TEMPERATURE,
-                    )
-                    from app.services.llm_client import create_sync_llm_client
+            # 客户端创建和同步 LLM 调用全部在线程中执行；任务由应用统一追踪和关闭。
+            background_tasks.create(
+                asyncio.to_thread(
+                    _extract_long_term_memory_sync,
+                    memory_conversation if isinstance(memory_conversation, dict) else None,
+                    model,
+                    provider,
+                ),
+                name=f"memory-extract:{chat_id}",
+            )
 
-                    if not is_long_term_memory_enabled():
-                        logger.info("[WebSocket] 长期记忆开关关闭，跳过自动提取")
-                        return
-
-                    # 仅使用本次对话结束后回传的 user/assistant 对，禁止回退到历史记录。
-                    if not (
-                        isinstance(memory_conversation, dict)
-                        and str(memory_conversation.get("user", "")).strip()
-                        and str(memory_conversation.get("assistant", "")).strip()
-                    ):
-                        logger.info("[WebSocket] 跳过长期记忆提取：未收到本轮完整 user/assistant 对话")
-                        return
-
-                    conversation = (
-                        f"USER: {memory_conversation.get('user', '')}\n\n"
-                        f"ASSISTANT: {memory_conversation.get('assistant', '')}"
-                    )
-
-                    sync_llm = create_sync_llm_client(model, provider, temperature=MEMORY_EXTRACT_TEMPERATURE)
-                    if sync_llm:
-                        extract_and_save_memory(conversation, sync_llm)
-                except Exception as e:
-                    logger.error(f"[WebSocket] 长期记忆提取失败: {e}")
-
-            # 创建后台任务执行记忆提取，不等待完成
-            asyncio.create_task(_extract_memory_async())
+            await record_token_usage(
+                input_tokens=token_usage.get("input_tokens", 0),
+                output_tokens=token_usage.get("output_tokens", 0),
+                cached_tokens=token_usage.get("cached_tokens", 0),
+            )
 
             await _persist_chat_turn(
                 session_id=session_id,

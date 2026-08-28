@@ -2,15 +2,14 @@
 
 ## 智能体模式选择
 
-文策 AI 提供三种智能体模式：
+文策 AI 提供两种智能体模式：
 
 | 模式 | 说明 | 适用场景 |
 |---|---|---|
 | **Agent模式** | 一个 AI 智能体独立完成任务 | 简单写作、内容修改、快速问答 |
 | **Ask模式** | 单 AI 智能体具有文档读取工具，不具有输出工具 | 复杂问题解答、文档分析、资料查询 |
-| **Plan模式** | 多个专家智能体协作完成任务 | 复杂长文章、深度研究报告 |
 
-在聊天输入区的模式选择器中切换 Agent、Ask 或 Plan。
+在聊天输入区的模式选择器中切换 Agent 或 Ask。
 
 ## 主要操作
 
@@ -23,23 +22,21 @@
 
 智能体在工作过程中会自动调用工具，以下是各种模式智能体可用的工具列表：
 
-| 工具 | 功能 | Agent | Ask | Plan |
+| 工具 | 功能 | Agent | Ask |
 |---|---|---|---|---|
-| **read_document** | 读取文档中指定范围的内容 | ✅ | ✅ | ✅ |
-| **search_document** | 查询某种格式或文字信息的段落位置 | ✅ | ✅ | ✅ |
-| **generate_document** | 生成带格式的文档内容并插入到 Word 中 | ✅ | ❌ | ✅ |
-| **edit_document** | 按 `paraID` 替换单个段落正文并保留原 `pStyle` | ✅ | ❌ | ❌ |
-| **delete_document** | 删除 Word 中指定的段落 | ✅ | ❌ | ✅ |
-| **create_document** | 创建并打开新的空白 DOCX 文档 | ✅ | ❌ | ✅ |
-| **insert_break** | 在指定段落后插入换行、分页或分节符 | ✅ | ❌ | ✅ |
-| **mcp_tools** | 调用已启用的 MCP 服务器工具 | ✅ | 视配置而定 | ✅ |
-| **load_skill_context** | 加载已启用 Skill 的完整规则 | ✅ | ✅ | ✅ |
-| **list_file** | 列出任务文件 | ✅ | ✅ | ✅ |
-| **read_file** | 读取任务文件 | ✅ | ✅ | ✅ |
-| **edit_file** | 编辑任务文件（不修改 Word 正文） | ✅ | ✅ | ✅ |
-| **python_repl** | 运行 Python 代码 | ✅ | ❌ | ❌ |
-| **review_document** | 对文档进行审阅并返回问题与修改建议 | ❌ | ❌ | ✅ |
-| **create_workflow** | 编排 Plan 模式的多智能体工作流 | ❌ | ❌ | ✅ |
+| **read_document** | 读取文档中指定范围的内容 | ✅ | ✅ |
+| **search_document** | 查询某种格式或文字信息的段落位置 | ✅ | ✅ |
+| **generate_document** | 生成带格式的文档内容并插入到 Word 中 | ✅ | ❌ |
+| **edit_document** | 按 `paraID` 替换单个段落正文并保留原 `pStyle` | ✅ | ❌ |
+| **delete_document** | 删除 Word 中指定的段落 | ✅ | ❌ |
+| **create_document** | 创建并打开新的空白 DOCX 文档 | ✅ | ❌ |
+| **insert_break** | 在指定段落后插入换行、分页或分节符 | ✅ | ❌ |
+| **mcp_tools** | 调用已启用的 MCP 服务器工具 | ✅ | 视配置而定 |
+| **load_skill_context** | 加载已启用 Skill 的完整规则 | ✅ | ✅ |
+| **list_file** | 列出任务文件 | ✅ | ✅ |
+| **read_file** | 读取任务文件 | ✅ | ✅ |
+| **edit_file** | 编辑任务文件（不修改 Word 正文） | ✅ | ✅ |
+| **python_repl** | 运行 Python 代码 | ✅ | ❌ |
 
 
 ::: info 说明
@@ -47,5 +44,5 @@
 :::
 
 ::: warning 当前版本说明
-单智能体 Agent 模式暂时不注册 `run_sub_agent`，因此不会调用子智能体。`edit_document` 当前用于 Agent 模式的单段落原位改写；Plan 模式仍使用多智能体 Writer 的现有文档工具集合。
+当前仅提供 Agent 和 Ask 两种模式。`edit_document` 用于 Agent 模式的单段落原位改写；Ask 模式不会生成或删除 Word 内容。
 :::

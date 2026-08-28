@@ -6,7 +6,6 @@
   <a href="backend/pyproject.toml"><img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python" /></a>
   <a href="backend/README.md"><img src="https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi&logoColor=white" alt="FastAPI" /></a>
   <a href="https://www.langchain.com/"><img src="https://img.shields.io/badge/LangChain-Used-1C3C3C?logo=chainlink&logoColor=white" alt="LangChain" /></a>
-  <a href="https://www.langchain.com/langgraph"><img src="https://img.shields.io/badge/LangGraph-Multi--Agent-0B3D91" alt="LangGraph" /></a>
   <a href="frontend/microsoft_word_plugin/package.json"><img src="https://img.shields.io/badge/Node.js-v22%2B-339933?logo=node.js&logoColor=white" alt="Node.js" /></a>
   <a href="https://github.com/visresearch/WordAgent/releases"><img src="https://img.shields.io/github/v/release/visresearch/WordAgent?include_prereleases" alt="Version" /></a>
   <a href="https://github.com/visresearch/WordAgent/releases"><img src="https://img.shields.io/github/downloads/visresearch/WordAgent/total?logo=github&label=Downloads" alt="Release Downloads" /></a>
@@ -17,19 +16,20 @@
   English | <a href="README.zh-CN.md">中文文档</a>
 </p>
 
-![](./web/docs/public/show.png)
+> [!INFO]
+> If the WPS add-in freezes on recent Windows versions, switch the window management mode to multi-component mode in Settings. See [issue #1](https://github.com/visresearch/WordAgent/issues/1) for details.
 
 ## 1. Project Overview
 
-This project is an AI-assisted writing system based on (multi-)agent workflows: **WenCe AI**. After installing the **add-in** in office software such as **WPS or Microsoft Word**, users can interact with AI agents through natural language to get **writing suggestions**, **content generation**, **structure optimization**, and more.
+This project is an AI-assisted writing system based on an agent workflow: **WenCe AI**. After installing the **add-in** in office software such as **WPS or Microsoft Word**, users can interact with the AI agent through natural language to get **writing suggestions**, **content generation**, **structure optimization**, and more.
 
 > WenCe AI (Word Agent): strategy-driven writing, smarter expression
 
 Compared with existing AI writing assistants on the market, WenCe AI provides:
 
-1. **Multi-version and cross-platform support**: built on widely used office software with a Copilot-style Word add-in, allowing general users to access high-quality AI writing assistance with a low barrier. It supports Windows, Linux, and macOS.
+1. **Multi-version and cross-platform support**: built on widely used office software with a Codex-style Word add-in, allowing general users to access high-quality AI writing assistance with a low barrier. It supports Windows, Linux, and macOS.
 2. **Native rich text with document styles and paragraph editing**: compared with common AI writing tools in Word, this project allows agents to understand Word document structure, autonomously collect online information, generate content that fits Word document structure, and modify article structure and content according to user needs.
-3. **Efficient editing with multi-agent collaboration**: multiple agents act as different **expert roles** and collaborate to generate in-depth long-form articles.
+3. **Efficient editing with autonomous tool use**: the agent understands the task and document context, then selects suitable tools to complete writing and editing tasks.
 4. **Open and flexible, with custom API or local service support**: the LLM API key used by this project is provided by the user. It currently supports most mainstream LLM providers, allowing users to choose different providers and models according to their needs.
 
 ## 2. Project Preview
@@ -38,19 +38,15 @@ Compared with existing AI writing assistants on the market, WenCe AI provides:
 | -- | -- |
 | ![](./web/docs/public/wps_addon.png) | ![](./web/docs/public/QtGUI.png) |
 
-For example, in WPS **Single Agent** mode, a user can enter: "Expand my internship objective into five points." The agent completes the task through the "**locate -> read -> understand -> edit**" workflow: it first calls `search_document` to locate the target paragraph, then calls `read_document` to read the paragraph content. After analysis and understanding, it calls `delete_document` to remove the original content, and finally calls `generate_document` to generate the expanded result. The frontend add-in renders the before/after content with different colored annotations, making changes easy to review.
+For example, in WPS **Single Agent** mode, a user can enter: "Expand my internship objective into five points." The agent completes the task through the "**locate -> read -> understand -> edit**" workflow: it first calls `search_document` to locate the target paragraph and obtain its paragraph ID, then calls `read_document` to read the paragraph content by ID. After analysis and understanding, it calls `delete_document` to remove the original paragraph, and finally calls `generate_document` to generate the expanded result. The frontend add-in renders the before/after content with different colored annotations, making changes easy to review.
 
 ![](./web/docs/public/preview2.png)
 
 > Note: the generated result includes not only text content, but also matching style information such as heading/body style, bold text, font, indentation, and line spacing. The frontend add-in renders the final result according to these styles so that it matches the Word document structure and format.
 
-As another example, in **Multi Agent** mode, the user can ask the system to write a long novel and create illustrations. Different expert agents work in sequence: the `planner agent` orchestrates the agent workflow, the `research agent` searches online novels and calls text-to-image tools, the `outline agent` describes the novel outline, the `writer agent` outputs the article, and finally the `reviewer agent` reviews the paragraphs and provides revision suggestions.
+For small changes within a single paragraph, WenCe AI also provides the `edit_document` tool. It edits the target paragraph by ID while preserving its paragraph properties and ID, making it especially useful for modifying table content.
 
-![](./web/docs/public/preview3.png)
-
-![](./web/docs/public/preview4.png)
-
-> Note: Multi Agent mode is better at generating long-form content while staying on topic and maintaining coherence, but its tool-calling capability is slightly weaker than Single Agent mode.
+![](./web/docs/public/edit_document.gif)
 
 In addition, this project supports two types of pluggable extensions for custom tools: **MCP Server** and **Skill**.
 
@@ -65,7 +61,6 @@ In addition, this project supports two types of pluggable extensions for custom 
 ## 3. Development Plan
 
 - [x] Single Agent mode
-- [x] Multi Agent mode
 - [x] MCP server and Skill tool integration
 - [x] Context compression
 - [x] Short-term and long-term memory
@@ -79,7 +74,17 @@ In addition, this project supports two types of pluggable extensions for custom 
 
 ## 4. System Architecture
 
-To better meet user needs and ensure the stability and depth of generated articles, this project designs two agent architectures:
+### Data Structure Model
+
+The core of this project is the stable generation of **structured documents**. WenCe AI separates content and styles: `paragraphs` stores the only ordered content stream, while `styles` stores deduplicated style arrays. Content nodes reference styles through IDs such as `pS_N`, `rS_N`, `cS_N`, and `tS_N`, similar to HTML elements referencing CSS rules.
+
+#### JSON Schema illustration
+
+![](./web/docs/public/json_schema.png)
+
+### Agent Loop Architecture
+
+To better meet user needs and ensure the stability and depth of generated articles, this project uses an Agent loop architecture:
 
 ### Single Agent Loop Architecture
 
@@ -95,19 +100,6 @@ In the backend Single Agent architecture, the system uses a standard ReAct agent
 - **generate_document tool**: generates article content in a specific JSON format and sends it to the frontend add-in.
 - **search_document tool**: searches paragraph positions by format or text information and returns them to the agent.
 - **delete_document tool**: deletes corresponding content according to paragraph IDs.
-
-### Multi Agent Architecture
-
-#### Overall Architecture Diagram
-
-![](./web/docs/public/multi_agent.png)
-
-The frontend part is the same as the Single Agent architecture. In the backend multi-agent collaboration framework, a **planner agent** is designed to orchestrate and schedule the workflow of multiple expert agents.
-
-- **research agent**: collects online reference information
-- **outline agent**: generates an article outline based on reference information and user requirements
-- **writer agent**: generates article content based on reference information and user requirements
-- **reviewer agent**: reviews generated articles and provides revision suggestions according to reference information and user requirements
 
 ## 5. Quick Start
 
@@ -194,11 +186,9 @@ This project has tested some LLM APIs and will continue testing and adapting mor
 - [x] GLM-5.1 runs stably
 - [x] GPT 5.4 runs stably
 - [x] MiniMax M2.5 runs stably
-- [x] Step 3.5 Flash runs stably
 - [x] DeepSeek v4 pro runs stably
 - [x] Claude Sonnet/Opus runs stably
 - [x] MiMo-V2.5 runs stably
-- [ ] Gemini 3.1 Pro
 
 > GPT series models are recommended for the best results, followed by Qwen series models. See the [evaluation document](./backend/evaluation/README.md) for details.
 

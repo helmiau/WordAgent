@@ -2,6 +2,7 @@
 
 import asyncio
 import contextvars
+import threading
 
 from app.core.logging import get_logger
 
@@ -19,6 +20,10 @@ _pending_tool_response_waiters: dict[str, dict[str, asyncio.Future]] = {}
 _pending_tool_response_backlog: dict[str, dict[str, dict]] = {}
 # 存储每个会话的停止状态（用户点击停止后置为 True）
 _stop_requested_sessions: set[str] = set()
+# Per-request cancellation events. A WebSocket may reuse one chat_id for
+# several sequential requests, so the event is replaced for each request and
+# an old request can never be resumed by clearing the shared stop set.
+_stop_events: dict[str, threading.Event] = {}
 # 当前线程使用的 chat_id（通过 contextvars 传递到 tool 函数中）
 _current_chat_id: contextvars.ContextVar[str | None] = contextvars.ContextVar("_current_chat_id", default=None)
 # 当前线程使用的模型名（供子智能体继承主智能体的模型）
@@ -64,9 +69,23 @@ def cleanup_tool_request(chat_id: str):
     _pending_tool_response_backlog.pop(chat_id, None)
 
 
+def register_stop_event(chat_id: str, event: threading.Event) -> None:
+    """Register the cancellation event belonging to one agent invocation."""
+    _stop_events[chat_id] = event
+
+
+def unregister_stop_event(chat_id: str, event: threading.Event) -> None:
+    """Remove an event only when it is still the current request event."""
+    if _stop_events.get(chat_id) is event:
+        _stop_events.pop(chat_id, None)
+
+
 def request_stop(chat_id: str):
     """标记会话停止，并唤醒可能正在等待前端回传的工具调用。"""
     _stop_requested_sessions.add(chat_id)
+    event = _stop_events.get(chat_id)
+    if event is not None:
+        event.set()
     q = _pending_tool_requests.get(chat_id)
     loop = _pending_loops.get(chat_id)
     if q and loop:

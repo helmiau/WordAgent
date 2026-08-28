@@ -109,6 +109,7 @@ hiddenimports = [
     "dotenv",
     "rapidocr_onnxruntime",
     "onnxruntime",
+    "PySide6.QtCharts",
     "PySide6",
     "PySide6.QtCore",
     "PySide6.QtGui",

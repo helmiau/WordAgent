@@ -42,6 +42,8 @@ from app.services.tools import (
     # MCP
     load_mcp_tools,
     register_loop,
+    register_stop_event,
+    unregister_stop_event,
     request_stop,
     submit_tool_response,
     wait_for_tool_response,
@@ -146,6 +148,8 @@ __all__ = [
     "create_tool_request",
     "is_stop_requested",
     "register_loop",
+    "register_stop_event",
+    "unregister_stop_event",
     "request_stop",
     "submit_tool_response",
     "wait_for_tool_response",

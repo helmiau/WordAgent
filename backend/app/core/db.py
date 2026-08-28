@@ -54,11 +54,20 @@ async def get_db():
 def _initialize_schema(connection) -> None:
     """创建当前表结构，并为旧业务会话补充对外 UUID。"""
     from sqlalchemy import inspect as sa_inspect
+    # Register all ORM tables even when database initialization runs before a
+    # route or service happens to import the model module.
+    from app.models import db_models as _db_models  # noqa: F401
 
     inspector = sa_inspect(connection)
     tables = inspector.get_table_names()
 
     Base.metadata.create_all(connection)
+
+    # token_usage was used by the first dashboard prototype. The dashboard now
+    # keeps only today's hourly buckets and the latest seven daily buckets.
+    if "token_usage" in tables:
+        connection.exec_driver_sql("DROP TABLE IF EXISTS token_usage")
+        logger.info("已移除旧 token_usage 表")
 
     if "sessions" in tables:
         from app.services.utils import generate_uuid7
