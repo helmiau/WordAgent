@@ -16,6 +16,7 @@
   <a href="README.md">English</a> | 中文文档
 </p>
 
+> [!caution]
 > 针对windows新版本wps插件运行卡死的问题，可以在“设置-切换窗口管理模式”中改为多组件模式来规避bug，详情请看[issue #1](https://github.com/visresearch/WordAgent/issues/1)
 
 ## 一、项目概述

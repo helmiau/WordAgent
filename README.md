@@ -16,6 +16,7 @@
   English | <a href="README.zh-CN.md">中文文档</a>
 </p>
 
+> [!caution]
 > If the WPS add-in freezes on recent Windows versions, switch the window management mode to multi-component mode in Settings. See [issue #1](https://github.com/visresearch/WordAgent/issues/1) for details.
 
 ## 1. Project Overview
@@ -41,11 +42,11 @@ For example, in WPS **Single Agent** mode, a user can enter: "Expand my internsh
 
 ![](./web/docs/public/preview2.png)
 
-> Note: the generated result includes not only text content, but also matching style information such as heading/body style, bold text, font, indentation, and line spacing. The frontend add-in renders the final result according to these styles so that it matches the Word document structure and format.
-
 For small changes within a single paragraph, WenCe AI also provides the `edit_document` tool. It edits the target paragraph by ID while preserving its paragraph properties and ID, making it especially useful for modifying table content.
 
 ![](./web/docs/public/edit_document.gif)
+
+> Note: the generated result includes not only text content, but also matching style information such as heading/body style, bold text, font, indentation, and line spacing. The frontend add-in renders the final result according to these styles so that it matches the Word document structure and format.
 
 In addition, this project supports two types of pluggable extensions for custom tools: **MCP Server** and **Skill**.
 
