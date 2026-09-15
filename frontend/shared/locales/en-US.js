@@ -6,7 +6,7 @@ export default {
     unknown: 'Unknown', unknownError: 'Unknown error', pleaseRetry: 'Please try again later', testing: 'Testing...'
   },
   language: {
-    label: 'Interface language', chinese: '简体中文', english: 'English'
+    label: 'Interface language', chinese: '简体中文', english: 'English', indonesian: 'Bahasa Indonesia'
   },
   windows: { assistant: 'WenCe AI Assistant', settings: 'Settings', about: 'About', debug: 'Debug panel' },
   nav: { chat: 'AI chat', history: 'Chat history', settings: 'Settings', about: 'About', debug: 'Debug' },
@@ -21,7 +21,7 @@ export default {
   },
   general: {
     title: 'Basic settings', subtitle: 'Configure startup behavior and display modes', language: 'Interface language',
-    simplifiedChinese: '简体中文', english: 'English',
+    simplifiedChinese: '简体中文', english: 'English', indonesian: 'Bahasa Indonesia',
     showPanel: 'Show the AI panel at startup', proofread: 'Proofreading display mode', proofreadMode: 'Proofreading display mode',
     redBlue: 'Red/blue mode', redblue: 'Red/blue mode', redBlueDesc: 'Mark deletions in light blue and additions in light red',
     redblueDesc: 'Mark deletions in light blue and additions in light red',

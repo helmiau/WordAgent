@@ -8,7 +8,7 @@ const messages = { 'en-US': enUS, 'id-ID': idID, 'zh-CN': zhCN };
 const I18N_KEY = Symbol('wence-i18n');
 
 function normalizeLocale(value) {
-  if (!value) return 'zh-CN';
+  if (!value) return 'en-US';
   const normalized = String(value).toLowerCase();
   if (normalized === 'en-us' || normalized.startsWith('en')) return 'en-US';
   if (normalized === 'id-id' || normalized === 'id' || normalized.startsWith('id')) return 'id-ID';

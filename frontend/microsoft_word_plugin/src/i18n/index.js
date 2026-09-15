@@ -7,7 +7,7 @@ const STORAGE_KEY = 'wence-interface-language';
 const messages = { 'zh-CN': zhCN, 'en-US': enUS, 'id-ID': idID };
 
 function normalizeLocale(value) {
-  if (!value) return 'zh-CN';
+  if (!value) return 'en-US';
   const normalized = String(value).toLowerCase();
   if (normalized === 'en-us' || normalized.startsWith('en')) return 'en-US';
   if (normalized === 'id-id' || normalized === 'id' || normalized.startsWith('id')) return 'id-ID';

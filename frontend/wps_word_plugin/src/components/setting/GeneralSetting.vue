@@ -197,11 +197,11 @@ export default {
       });
     };
 
-    const selectedLanguageLabel = computed(() => (
-      localSettings.value.language === 'en-US'
-        ? t('general.english')
-        : t('general.simplifiedChinese')
-    ));
+    const selectedLanguageLabel = computed(() => {
+      if (localSettings.value.language === 'en-US') return t('general.english');
+      if (localSettings.value.language === 'id-ID') return t('general.indonesian');
+      return t('general.simplifiedChinese');
+    });
 
     const closeLanguageMenu = () => {
       languageMenuOpen.value = false;
