@@ -26,6 +26,7 @@ from .wps_install_interface import InstallInterface
 from .office_install_interface import OfficeInstallInterface
 from .console_interface import ConsoleInterface
 from .dashboard_interface import DashboardInterface
+from gui.i18n import t
 
 
 def _icon_path(name: str) -> str:
@@ -124,35 +125,35 @@ class MainWindow(QMainWindow):
         self._nav.addItem(
             routeKey="homeInterface",
             icon=FluentIcon.HOME,
-            text="主页",
+            text=t("nav.home"),
             onClick=lambda: self._switchPage(self._homeInterface),
             position=NavigationItemPosition.TOP,
         )
         self._nav.addItem(
             routeKey="dashboardInterface",
             icon=QIcon(_icon_path("dashboard.svg")),
-            text="仪表盘",
+            text=t("nav.dashboard"),
             onClick=lambda: self._switchPage(self._dashboardInterface),
             position=NavigationItemPosition.BOTTOM,
         )
         self._nav.addItem(
             routeKey="installInterface",
             icon=QIcon(_icon_path("WPS.svg")),
-            text="WPS 加载项",
+            text=t("nav.wps"),
             onClick=lambda: self._switchPage(self._installInterface),
             position=NavigationItemPosition.TOP,
         )
         self._nav.addItem(
             routeKey="officeInstallInterface",
             icon=QIcon(_icon_path("Office.svg")),
-            text="Office 加载项",
+            text=t("nav.office"),
             onClick=lambda: self._switchPage(self._officeInstallInterface),
             position=NavigationItemPosition.TOP,
         )
         self._nav.addItem(
             routeKey="consoleInterface",
             icon=FluentIcon.COMMAND_PROMPT,
-            text="终端",
+            text=t("nav.console"),
             onClick=lambda: self._switchPage(self._consoleInterface),
             position=NavigationItemPosition.BOTTOM,
         )

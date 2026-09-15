@@ -146,15 +146,15 @@ def start_gui(base_path=None):
         window.set_tray_available(True)
 
         tray_menu = QMenu(window)
-        show_action = QAction("显示", tray_menu)
-        quit_action = QAction("退出文策AI", tray_menu)
+        show_action = QAction(t("tray.show"), tray_menu)
+        quit_action = QAction(t("tray.quit"), tray_menu)
         show_action.triggered.connect(window.show_from_tray)
         quit_action.triggered.connect(window.quit_from_tray)
         tray_menu.addAction(show_action)
         tray_menu.addAction(quit_action)
 
         tray_icon = QSystemTrayIcon(app_icon, qt_app)
-        tray_icon.setToolTip("文策AI")
+        tray_icon.setToolTip(t("tray.tooltip"))
         tray_icon.setContextMenu(tray_menu)
         tray_icon.activated.connect(
             lambda reason: (
