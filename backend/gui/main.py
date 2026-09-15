@@ -20,7 +20,6 @@ from qfluentwidgets import setTheme, Theme
 
 from app.core.logging import get_logger
 from gui.i18n import get_locale, set_locale, subscribe_locale_changed, t
-from gui.i18n import get_locale, set_locale, t
 
 IS_WINDOWS = platform.system() == "Windows"
 logger = get_logger(__name__)

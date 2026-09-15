@@ -26,7 +26,7 @@ from .wps_install_interface import InstallInterface
 from .office_install_interface import OfficeInstallInterface
 from .console_interface import ConsoleInterface
 from .dashboard_interface import DashboardInterface
-from gui.i18n import t
+from gui.i18n import subscribe_locale_changed, t
 
 
 def _icon_path(name: str) -> str:
@@ -164,6 +164,23 @@ class MainWindow(QMainWindow):
         # 默认主页
         self._switchPage(self._homeInterface)
         self._nav.setCurrentItem("homeInterface")
+        # 语言切换时刷新导航文案
+        subscribe_locale_changed(self._retranslate_nav)
+
+    def _retranslate_nav(self, _locale: str = ""):
+        """Update navigation item texts after an interface language change."""
+        labels = {
+            "homeInterface": t("nav.home"),
+            "dashboardInterface": t("nav.dashboard"),
+            "installInterface": t("nav.wps"),
+            "officeInstallInterface": t("nav.office"),
+            "consoleInterface": t("nav.console"),
+        }
+        for key, text in labels.items():
+            try:
+                self._nav.setItemText(key, text)
+            except Exception:
+                pass
 
     def _switchPage(self, widget):
         self._stack.setCurrentWidget(widget)

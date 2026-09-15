@@ -10,16 +10,17 @@ from PySide6.QtCore import QObject, QPointF, QRunnable, QThreadPool, QTimer, Sig
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QGraphicsLineItem, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 from qfluentwidgets import BodyLabel, CaptionLabel, CardWidget, SegmentedWidget, StrongBodyLabel, TitleLabel
+from gui.i18n import t
 
 
 SERIES = (
-    ("inputTokens", "输入 Token", QColor("#3b82f6")),
-    ("outputTokens", "输出 Token", QColor("#22c55e")),
-    ("cachedTokens", "缓存命中 Token", QColor("#a855f7")),
+    ("inputTokens", t("dashboard.metrics.inputTokens"), QColor("#3b82f6")),
+    ("outputTokens", t("dashboard.metrics.outputTokens"), QColor("#22c55e")),
+    ("cachedTokens", t("dashboard.metrics.cachedTokens"), QColor("#a855f7")),
 )
 
 METRIC_CARDS = SERIES + (
-    ("cacheHitRate", "缓存命中率", QColor("#f59e0b")),
+    ("cacheHitRate", t("dashboard.metrics.cacheHitRate"), QColor("#f59e0b")),
 )
 
 
@@ -128,15 +129,15 @@ class DashboardInterface(QWidget):
         header = QHBoxLayout()
         title_col = QVBoxLayout()
         title_col.setSpacing(3)
-        title_col.addWidget(TitleLabel("Token 使用仪表盘", self))
-        subtitle = CaptionLabel("统计最近 文策AI token使用情况", self)
+        title_col.addWidget(TitleLabel(t("dashboard.title"), self))
+        subtitle = CaptionLabel(t("dashboard.subtitle"), self)
         subtitle.setTextColor(QColor("#777777"), QColor("#aaaaaa"))
         title_col.addWidget(subtitle)
         header.addLayout(title_col)
         header.addStretch(1)
 
         self._period_selector = SegmentedWidget(self)
-        for route_key, text in (("today", "当天"), ("7d", "7 天")):
+        for route_key, text in (("today", t("dashboard.period.today")), ("7d", t("dashboard.period.7d"))):
             self._period_selector.addItem(routeKey=route_key, text=text)
         self._period_selector.setCurrentItem("today")
         self._period_selector.currentItemChanged.connect(self._set_period)
@@ -157,9 +158,9 @@ class DashboardInterface(QWidget):
         chart_layout.setContentsMargins(14, 14, 14, 10)
         chart_layout.setSpacing(8)
         chart_header = QHBoxLayout()
-        chart_header.addWidget(StrongBodyLabel("使用趋势", chart_card))
+        chart_header.addWidget(StrongBodyLabel(t("dashboard.chart.trend"), chart_card))
         chart_header.addStretch(1)
-        self._status = BodyLabel("正在加载…", chart_card)
+        self._status = BodyLabel(t("dashboard.status.loading"), chart_card)
         self._status.setStyleSheet("color: #888888;")
         chart_header.addWidget(self._status)
         chart_layout.addLayout(chart_header)
@@ -288,11 +289,11 @@ class DashboardInterface(QWidget):
         if request_id != self._load_request_id or period != self._period:
             return
         if not isinstance(payload, dict):
-            self._on_load_failed(request_id, period, "Token 使用数据格式无效")
+            self._on_load_failed(request_id, period, t("dashboard.status.invalid"))
             return
         self._render(payload)
         has_usage = any(int(value or 0) for value in payload.get("totals", {}).values())
-        self._status.setText("悬停图表可查看明细" if has_usage else "暂无使用记录")
+        self._status.setText(t("dashboard.status.hover") if has_usage else t("dashboard.status.empty"))
 
     @Slot(int, str, str)
     def _on_load_failed(self, request_id: int, period: str, error: str):
@@ -300,7 +301,7 @@ class DashboardInterface(QWidget):
         if request_id != self._load_request_id or period != self._period:
             return
         self._render(self._zero_payload())
-        self._status.setText("数据读取失败，请稍后重试")
+        self._status.setText(t("dashboard.status.failed"))
         self._status.setStyleSheet("color: #dc2626;")
         self._status.setToolTip(error)
 
@@ -345,7 +346,7 @@ class DashboardInterface(QWidget):
         for axis in list(self._chart.axes()):
             self._chart.removeAxis(axis)
         if not self._points:
-            self._chart.setTitle("暂无 Token 使用数据")
+            self._chart.setTitle(t("dashboard.chart.empty"))
             return
         self._chart.setTitle("")
 
@@ -420,9 +421,9 @@ class DashboardInterface(QWidget):
             label = raw_time
         text = (
             f"<b>{label}</b><br>"
-            f"<span style='color:#3b82f6'>● 输入：</span>{int(item.get('inputTokens', 0)):,}<br>"
-            f"<span style='color:#22c55e'>● 输出：</span>{int(item.get('outputTokens', 0)):,}<br>"
-            f"<span style='color:#a855f7'>● 缓存命中：</span>{int(item.get('cachedTokens', 0)):,}"
+            f"<span style='color:#3b82f6'>● {t('dashboard.tooltip.input')}</span>{int(item.get('inputTokens', 0)):,}<br>"
+            f"<span style='color:#22c55e'>● {t('dashboard.tooltip.output')}</span>{int(item.get('outputTokens', 0)):,}<br>"
+            f"<span style='color:#a855f7'>● {t('dashboard.tooltip.cached')}</span>{int(item.get('cachedTokens', 0)):,}"
         )
         self._detail_label.setText(text)
         self._detail_label.adjustSize()

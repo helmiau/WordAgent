@@ -1,4 +1,4 @@
-"""主页界面 - 使用 qfluentwidgets 组件 + QWidget 基类"""
+﻿"""主页界面 - 使用 qfluentwidgets 组件 + QWidget 基类"""
 
 import json
 import os
@@ -28,7 +28,9 @@ from qfluentwidgets import (
     PushButton,
     InfoBar,
     InfoBarPosition,
+    SegmentedWidget,
 )
+from gui.i18n import get_locale, set_locale, subscribe_locale_changed, t
 
 
 def _read_local_version() -> str:
@@ -111,8 +113,8 @@ class HomeInterface(QWidget):
 
         title_col = QVBoxLayout()
         title_col.setSpacing(4)
-        title = TitleLabel("WenCe AI", self)
-        subtitle = CaptionLabel("让写作有策略，让表达更智能", self)
+        title = TitleLabel(t("app.name"), self)
+        self._subtitle_label = subtitle = CaptionLabel(t("home.subtitle"), self)
         subtitle.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
         title_col.addWidget(title)
         title_col.addWidget(subtitle)
@@ -120,7 +122,7 @@ class HomeInterface(QWidget):
         button_row = QHBoxLayout()
         button_row.setSpacing(10)
 
-        github_button = PushButton("GitHub", self)
+        github_button = PushButton(t("home.button.github"), self)
         github_icon_path = os.path.join(os.path.dirname(__file__), "..", "resources", "icon", "github.svg")
         github_icon_path = os.path.normpath(github_icon_path)
         if os.path.exists(github_icon_path):
@@ -128,7 +130,7 @@ class HomeInterface(QWidget):
         github_button.clicked.connect(lambda: self._open_url(self.GITHUB_URL))
         button_row.addWidget(github_button)
 
-        website_button = PushButton("官网文档", self)
+        self._website_button = website_button = PushButton(t("home.button.website"), self)
         website_icon_path = os.path.join(os.path.dirname(__file__), "..", "resources", "icon", "Web.svg")
         website_icon_path = os.path.normpath(website_icon_path)
         if os.path.exists(website_icon_path):
@@ -154,23 +156,41 @@ class HomeInterface(QWidget):
         self._dot.setFixedSize(10, 10)
         sl.addWidget(self._dot, alignment=Qt.AlignVCenter)
 
-        self._status_label = BodyLabel("后端服务运行中（正在检查更新）", self)
+        self._status_label = BodyLabel(t("home.status.runningChecking"), self)
         sl.addWidget(self._status_label, 1)
 
-        self._version_label = CaptionLabel(f"当前版本：{self._current_version or '未知版本'}", self)
+        self._version_label = CaptionLabel(t("home.version.current", version=self._current_version or t("home.version.unknown")), self)
         self._version_label.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
         sl.addWidget(self._version_label, alignment=Qt.AlignVCenter)
 
-        self._update_label = CaptionLabel("正在检查更新...", self)
+        self._update_label = CaptionLabel(t("home.update.checking"), self)
         self._update_label.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
         sl.addWidget(self._update_label, alignment=Qt.AlignVCenter)
 
-        self._download_button = PushButton("前往下载最新版本", self)
+        self._download_button = PushButton(t("home.button.downloadLatest"), self)
         self._download_button.clicked.connect(lambda: self._open_url(self.RELEASE_URL))
         self._download_button.hide()
         sl.addWidget(self._download_button, alignment=Qt.AlignVCenter)
 
         layout.addWidget(status)
+        layout.addSpacing(20)
+        # --- language picker ---
+        lang_card = CardWidget(self)
+        lang_layout = QHBoxLayout(lang_card)
+        lang_layout.setContentsMargins(16, 12, 16, 12)
+        self._lang_label = BodyLabel(t("language.label"), self)
+        self._lang_label.setStyleSheet("font-weight: bold;")
+        lang_layout.addWidget(self._lang_label, alignment=Qt.AlignVCenter)
+        lang_layout.addSpacing(16)
+        self._lang_picker = SegmentedWidget(self)
+        self._lang_picker.addItem(routeKey="en-US", text="English")
+        self._lang_picker.addItem(routeKey="zh-CN", text="简体中文")
+        self._lang_picker.addItem(routeKey="id-ID", text="Bahasa Indonesia")
+        self._lang_picker.setCurrentItem(get_locale())
+        self._lang_picker.currentItemChanged.connect(self._on_language_changed)
+        lang_layout.addWidget(self._lang_picker, alignment=Qt.AlignVCenter)
+        lang_layout.addStretch(1)
+        layout.addWidget(lang_card)
         layout.addSpacing(20)
 
         # --- 功能卡片 ---
@@ -179,16 +199,16 @@ class HomeInterface(QWidget):
         row1.addWidget(
             _InfoCard(
                 FluentIcon.APPLICATION,
-                "跨平台适配",
-                "以 WPS 和 Microsoft Word 为载体，同时支持 Windows 和 Linux，让用户低门槛获得 AI 写作辅助体验。",
+                t("home.cards.crossPlatform.title"),
+                t("home.cards.crossPlatform.desc"),
                 self,
             )
         )
         row1.addWidget(
             _InfoCard(
                 FluentIcon.DOCUMENT,
-                "原生富文本生成",
-                "智能体理解 Word 文档结构，支持标题、正文、加粗、字体、缩进、行距等样式生成与编辑。",
+                t("home.cards.richText.title"),
+                t("home.cards.richText.desc"),
                 self,
             )
         )
@@ -200,16 +220,16 @@ class HomeInterface(QWidget):
         row2.addWidget(
             _InfoCard(
                 FluentIcon.CHAT,
-                "工具化工作流",
-                "通过文档工具、MCP 和 Skill 完成长文写作、资料查询与复杂编辑任务。",
+                t("home.cards.workflow.title"),
+                t("home.cards.workflow.desc"),
                 self,
             )
         )
         row2.addWidget(
             _InfoCard(
                 FluentIcon.SETTING,
-                "自由开放",
-                "支持自定义 API 或本地服务，兼容多数主流 LLM 服务商，模型选择更灵活。",
+                t("home.cards.open.title"),
+                t("home.cards.open.desc"),
                 self,
             )
         )
@@ -217,6 +237,23 @@ class HomeInterface(QWidget):
 
         layout.addStretch(1)
         QTimer.singleShot(0, self._check_latest_release_async)
+
+    def _on_language_changed(self, route_key: str):
+        """Apply the selected interface language and refresh static texts."""
+        if not route_key:
+            return
+        set_locale(route_key)
+        self._retranslate()
+
+    def _retranslate(self):
+        """Update all translatable labels on this page."""
+        self._lang_label.setText(t("language.label"))
+        self._subtitle_label.setText(t("home.subtitle"))
+        self._website_button.setText(t("home.button.website"))
+        self._version_label.setText(t("home.version.current", version=self._current_version or t("home.version.unknown")))
+        self._update_label.setText(t("home.update.checking"))
+        self._download_button.setText(t("home.button.downloadLatest"))
+        self._status_label.setText(t("home.status.runningChecking"))
 
     def _open_url(self, url: str):
         webbrowser.open(url)
@@ -252,9 +289,9 @@ class HomeInterface(QWidget):
     def _on_update_check_finished(self, result: dict):
         latest_tag = str(result.get("latest_tag", "")).strip()
         if not result.get("ok"):
-            self._update_label.setText("更新检查失败")
+            self._update_label.setText(t("home.update.failed"))
             self._update_label.setTextColor(QColor("#d97706"), QColor("#d97706"))
-            self._status_label.setText("后端服务运行中（未能获取更新信息）")
+            self._status_label.setText(t("home.status.runningNoUpdateInfo"))
             return
 
         local_key = _version_key(self._current_version)
@@ -262,19 +299,19 @@ class HomeInterface(QWidget):
         has_new_version = bool(latest_key) and (not local_key or latest_key > local_key)
 
         if has_new_version:
-            self._status_label.setText(f"发现新版本：{latest_tag}，请前往官网下载安装")
-            self._update_label.setText(f"有最新版本：{latest_tag}")
+            self._status_label.setText(t("home.status.newVersion", tag=latest_tag))
+            self._update_label.setText(t("home.update.new", tag=latest_tag))
             self._update_label.setTextColor(QColor("#d97706"), QColor("#d97706"))
             self._download_button.show()
             InfoBar.warning(
-                title="发现新版本",
-                content=f"检测到最新版本 {latest_tag}，请前往官网下载安装。",
+                title=t("home.infobar.newVersion.title"),
+                content=t("home.infobar.newVersion.content", tag=latest_tag),
                 parent=self,
                 position=InfoBarPosition.TOP,
                 duration=5000,
             )
             return
 
-        self._status_label.setText("后端服务运行中（已是最新版本）")
-        self._update_label.setText("已是最新版本")
+        self._status_label.setText(t("home.status.runningLatest"))
+        self._update_label.setText(t("home.update.latest"))
         self._update_label.setTextColor(QColor("#16a34a"), QColor("#16a34a"))
