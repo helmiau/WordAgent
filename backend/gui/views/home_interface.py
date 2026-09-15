@@ -28,7 +28,7 @@ from qfluentwidgets import (
     PushButton,
     InfoBar,
     InfoBarPosition,
-    SegmentedWidget,
+    ComboBox,
 )
 from gui.i18n import get_locale, set_locale, subscribe_locale_changed, t
 
@@ -187,12 +187,18 @@ class HomeInterface(QWidget):
         self._lang_label.setStyleSheet("font-weight: bold;")
         lang_layout.addWidget(self._lang_label, alignment=Qt.AlignVCenter)
         lang_layout.addSpacing(16)
-        self._lang_picker = SegmentedWidget(self)
-        self._lang_picker.addItem(routeKey="en-US", text="English")
-        self._lang_picker.addItem(routeKey="zh-CN", text="简体中文")
-        self._lang_picker.addItem(routeKey="id-ID", text="Bahasa Indonesia")
-        self._lang_picker.setCurrentItem(get_locale())
-        self._lang_picker.currentItemChanged.connect(self._on_language_changed)
+        self._lang_picker = ComboBox(self)
+        # (locale, display name) — names stay in their own language on purpose.
+        self._lang_items = [
+            ("en-US", "English"),
+            ("zh-CN", "简体中文"),
+            ("id-ID", "Bahasa Indonesia"),
+        ]
+        self._lang_picker.addItems([name for _, name in self._lang_items])
+        self._lang_picker.setCurrentIndex(
+            max(0, next((i for i, (loc, _) in enumerate(self._lang_items) if loc == get_locale()), 0))
+        )
+        self._lang_picker.currentIndexChanged.connect(self._on_language_changed)
         lang_layout.addWidget(self._lang_picker, alignment=Qt.AlignVCenter)
         lang_layout.addStretch(1)
         layout.addWidget(lang_card)
@@ -239,11 +245,14 @@ class HomeInterface(QWidget):
         layout.addStretch(1)
         QTimer.singleShot(0, self._check_latest_release_async)
 
-    def _on_language_changed(self, route_key: str):
+    def _on_language_changed(self, index: int):
         """Apply the selected interface language and refresh static texts."""
-        if not route_key:
+        if index < 0 or index >= len(self._lang_items):
             return
-        set_locale(route_key)
+        locale, _ = self._lang_items[index]
+        if locale == get_locale():
+            return
+        set_locale(locale)
         self._retranslate()
 
     def _retranslate(self):
