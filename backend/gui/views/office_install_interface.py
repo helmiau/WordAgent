@@ -180,22 +180,7 @@ class OfficeInstallInterface(QWidget):
         card_layout.setContentsMargins(20, 16, 20, 16)
         card_layout.setSpacing(12)
 
-        self._usage_label = BodyLabel(t("office.usage"),
-            "1. 确保“启动 HTTPS 服务”。（进入本页面会自动启动）<br/>"
-            "2. 点击“安装证书”按钮，在系统弹出的证书界面依次点击：安装证书-&gt;本地计算机-&gt;将所有的证书都放入下列存储-&gt;浏览-&gt;受信任的根证书颁发机构，然后一路确定即可。<br/>"
-            "3. 点击“用浏览器打开”，如果没有不安全提示，代表证书安装成功；否则，重启后端服务软件再次点击“用浏览器打开”，如果依然有不安全提示，说明证书安装失败，请询问作者或自行安装证书。<br/><br/>"
-            "网页版使用方法：<br/>"
-            "1. 打开 <a href='https://word.cloud.microsoft/' style='color: #2563eb; text-decoration: underline;'>https://word.cloud.microsoft/</a> 并进入 Word 网页版。<br/>"
-            "2. 进入：开始-&gt;加载项-&gt;更多加载项-&gt;我的加载项-&gt;管理我的加载项-&gt;上传我的加载项<br/>"
-            "3. 上传下载好的 manifest.xml，完成加载。如果加载项界面未显示，请刷新页面。<br/><br/>"
-            "客户端使用方法：<br/>"
-            "1. 点击“下载 manifest.xml”保存一个空文件夹中。<br/>"
-            "2. 右键属性这个文件夹，进入“共享”选项卡，点击“共享”，选择“Everyone”，点击“共享”并记下网络路径。<br/>"
-            "3. 打开 Microsoft Word 客户端，进入：文件-&gt;选项-&gt;信任中心-&gt;信任中心设置-&gt;受信任的加载项目录，在“目录URL”中输入网络路径并点击添加目录，重启Word完成加载。<br/>"
-            "4. 如果加载项界面未显示，进入：文件-&gt;选项-&gt;自定义功能区，将开发工具添加到“主选项卡”中。点击Word上方的“开发工具”选项卡，点击加载项-&gt;共享文件夹-&gt;文策AI助手，即可使用加载项。<br/><br/>"
-            "【详细图文教程请访问 <a href='https://visresearch.github.io/WordAgent/' style='color: #2563eb; text-decoration: underline;'>https://visresearch.github.io/WordAgent/</a>】",
-            card,
-        )
+        self._usage_label = BodyLabel(t("office.usage"), card)
         self._usage_label.setTextFormat(Qt.RichText)
         self._usage_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
         self._usage_label.setOpenExternalLinks(True)

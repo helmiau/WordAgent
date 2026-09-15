@@ -1,4 +1,4 @@
-﻿"""主页界面 - 使用 qfluentwidgets 组件 + QWidget 基类"""
+"""主页界面 - 使用 qfluentwidgets 组件 + QWidget 基类"""
 
 import json
 import os
@@ -70,14 +70,19 @@ class _InfoCard(CardWidget):
         text_layout = QVBoxLayout()
         text_layout.setSpacing(2)
 
-        t = StrongBodyLabel(title, self)
-        d = CaptionLabel(desc, self)
-        d.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
-        d.setWordWrap(True)
+        self._title_label = StrongBodyLabel(title, self)
+        self._desc_label = CaptionLabel(desc, self)
+        self._desc_label.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
+        self._desc_label.setWordWrap(True)
 
-        text_layout.addWidget(t)
-        text_layout.addWidget(d)
+        text_layout.addWidget(self._title_label)
+        text_layout.addWidget(self._desc_label)
         layout.addLayout(text_layout, 1)
+
+    def setTexts(self, title: str, desc: str):
+        """Update card title and description (used on language change)."""
+        self._title_label.setText(title)
+        self._desc_label.setText(desc)
 
 
 class HomeInterface(QWidget):
@@ -196,43 +201,39 @@ class HomeInterface(QWidget):
         # --- 功能卡片 ---
         row1 = QHBoxLayout()
         row1.setSpacing(16)
-        row1.addWidget(
-            _InfoCard(
-                FluentIcon.APPLICATION,
-                t("home.cards.crossPlatform.title"),
-                t("home.cards.crossPlatform.desc"),
-                self,
-            )
+        self._card_cross = _InfoCard(
+            FluentIcon.APPLICATION,
+            t("home.cards.crossPlatform.title"),
+            t("home.cards.crossPlatform.desc"),
+            self,
         )
-        row1.addWidget(
-            _InfoCard(
-                FluentIcon.DOCUMENT,
-                t("home.cards.richText.title"),
-                t("home.cards.richText.desc"),
-                self,
-            )
+        row1.addWidget(self._card_cross)
+        self._card_rich = _InfoCard(
+            FluentIcon.DOCUMENT,
+            t("home.cards.richText.title"),
+            t("home.cards.richText.desc"),
+            self,
         )
+        row1.addWidget(self._card_rich)
         layout.addLayout(row1)
         layout.addSpacing(16)
 
         row2 = QHBoxLayout()
         row2.setSpacing(16)
-        row2.addWidget(
-            _InfoCard(
-                FluentIcon.CHAT,
-                t("home.cards.workflow.title"),
-                t("home.cards.workflow.desc"),
-                self,
-            )
+        self._card_workflow = _InfoCard(
+            FluentIcon.CHAT,
+            t("home.cards.workflow.title"),
+            t("home.cards.workflow.desc"),
+            self,
         )
-        row2.addWidget(
-            _InfoCard(
-                FluentIcon.SETTING,
-                t("home.cards.open.title"),
-                t("home.cards.open.desc"),
-                self,
-            )
+        row2.addWidget(self._card_workflow)
+        self._card_open = _InfoCard(
+            FluentIcon.SETTING,
+            t("home.cards.open.title"),
+            t("home.cards.open.desc"),
+            self,
         )
+        row2.addWidget(self._card_open)
         layout.addLayout(row2)
 
         layout.addStretch(1)
@@ -254,6 +255,10 @@ class HomeInterface(QWidget):
         self._update_label.setText(t("home.update.checking"))
         self._download_button.setText(t("home.button.downloadLatest"))
         self._status_label.setText(t("home.status.runningChecking"))
+        self._card_cross.setTexts(t("home.cards.crossPlatform.title"), t("home.cards.crossPlatform.desc"))
+        self._card_rich.setTexts(t("home.cards.richText.title"), t("home.cards.richText.desc"))
+        self._card_workflow.setTexts(t("home.cards.workflow.title"), t("home.cards.workflow.desc"))
+        self._card_open.setTexts(t("home.cards.open.title"), t("home.cards.open.desc"))
 
     def _open_url(self, url: str):
         webbrowser.open(url)
