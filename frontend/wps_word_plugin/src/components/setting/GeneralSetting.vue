@@ -54,6 +54,16 @@
           <button
             type="button"
             class="language-option"
+            :class="{ selected: localSettings.language === 'id-ID' }"
+            role="option"
+            :aria-selected="localSettings.language === 'id-ID'"
+            @click="selectLanguage('id-ID')"
+          >
+            {{ $t('general.indonesian') }}
+          </button>
+          <button
+            type="button"
+            class="language-option"
             :class="{ selected: localSettings.language === 'en-US' }"
             role="option"
             :aria-selected="localSettings.language === 'en-US'"

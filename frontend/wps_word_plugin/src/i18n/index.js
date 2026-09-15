@@ -1,13 +1,18 @@
 import { inject, ref } from 'vue';
 import enUS from '../locales/en-US.js';
+import idID from '../locales/id-ID.js';
 import zhCN from '../locales/zh-CN.js';
 
 const STORAGE_KEY = 'wence-interface-language';
-const messages = { 'en-US': enUS, 'zh-CN': zhCN };
+const messages = { 'en-US': enUS, 'id-ID': idID, 'zh-CN': zhCN };
 const I18N_KEY = Symbol('wence-i18n');
 
 function normalizeLocale(value) {
-  return String(value || '').toLowerCase().startsWith('en') ? 'en-US' : 'zh-CN';
+  if (!value) return 'zh-CN';
+  const normalized = String(value).toLowerCase();
+  if (normalized === 'en-us' || normalized.startsWith('en')) return 'en-US';
+  if (normalized === 'id-id' || normalized === 'id' || normalized.startsWith('id')) return 'id-ID';
+  return 'zh-CN';
 }
 
 function initialLocale() {

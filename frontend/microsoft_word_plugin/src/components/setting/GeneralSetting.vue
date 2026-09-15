@@ -54,6 +54,16 @@
           <button
             type="button"
             class="language-option"
+            :class="{ selected: localSettings.language === 'id-ID' }"
+            role="option"
+            :aria-selected="localSettings.language === 'id-ID'"
+            @click="selectLanguage('id-ID')"
+          >
+            {{ $t('general.indonesian') }}
+          </button>
+          <button
+            type="button"
+            class="language-option"
             :class="{ selected: localSettings.language === 'en-US' }"
             role="option"
             :aria-selected="localSettings.language === 'en-US'"
@@ -187,11 +197,11 @@ export default {
       });
     };
 
-    const selectedLanguageLabel = computed(() => (
-      localSettings.value.language === 'en-US'
-        ? t('general.english')
-        : t('general.simplifiedChinese')
-    ));
+    const selectedLanguageLabel = computed(() => {
+      if (localSettings.value.language === 'en-US') return t('general.english');
+      if (localSettings.value.language === 'id-ID') return t('general.indonesian');
+      return t('general.simplifiedChinese');
+    });
 
     const closeLanguageMenu = () => {
       languageMenuOpen.value = false;
