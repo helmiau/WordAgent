@@ -145,7 +145,7 @@ def configure_logging(
             file_handler.setFormatter(formatter)
             root.addHandler(file_handler)
         except OSError as exc:
-            root.warning("日志文件初始化失败: %s", exc)
+            root.warning("Log file initialization failed: %s", exc)
 
     root.setLevel(log_level)
     logging.captureWarnings(True)
