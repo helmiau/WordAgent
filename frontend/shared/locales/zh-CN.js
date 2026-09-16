@@ -43,6 +43,9 @@ export default {
     builtinDeleteDisabled: '内置 Skill 不能删除'
   },
   model: {
+    connect: '测试连接',
+    connectionSuccess: '连接成功\n模型：{model}\n延迟：{latency} ms',
+    connectionFailed: '连接失败\n模型：{model}\n原因：{error}',
     title: '大模型服务商配置', subtitle: '管理 AI 服务提供商和模型设置', configured: '已配置的提供商',
     availableCount: '{count} 个可用模型', addProvider: '添加提供商', newProvider: '新提供商', modelCount: '{count} 个模型',
     name: '名称', namePlaceholder: '例如：openai', apiType: 'API 类型', openaiCompatible: 'OpenAI 兼容',
@@ -104,6 +107,9 @@ export default {
     deleteBody: '确定要删除这个会话吗？此操作无法撤销。'
   },
   chat: {
+    clarificationTitle: '需要你补充一点信息', clarificationHint: '选择一个答案，或自行填写后继续。',
+    clarificationCustom: '自行填写', clarificationPlaceholder: '输入你的想法或具体要求…',
+    clarificationContinue: '提交并继续', clarificationSubmitting: '正在继续…', clarificationInputHint: '请先回答上方问题',
     attachment: '附件', removeFile: '移除文件', chars: '{count} 字', clearSelection: '清除选区',
     allowThinking: '允许思考', disableThinking: '禁止思考', thinkingToggle: '启用或禁用深度思考',
     addFile: '添加文件', addSelection: '添加选区', send: '发送', stop: '终止',

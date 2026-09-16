@@ -1,3 +1,4 @@
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
@@ -13,6 +14,7 @@ _LOCAL_BASE_PROMPT_FILES = [
 ]
 
 _READ_ONLY_TOOL_PROMPT_FILES = [
+    "system-prompt-tool-usage-ask-user.md",
     "system-prompt-tool-usage-read-document.md",
     "system-prompt-tool-usage-search-document.md",
     "system-prompt-tool-usage-load-skill-context.md",
@@ -110,6 +112,36 @@ def get_agent_prompt(mode: str | None = None) -> str:
     return "\n\n".join(get_agent_prompt_parts(mode=mode))
 
 
+def build_user_prompt(
+    message: str,
+    *,
+    request_time: datetime,
+    custom_prompt: str = "",
+    long_term_memory: str = "",
+    context_sections: list[str] | None = None,
+    image_context: str = "",
+) -> str:
+    """Keep per-request context in the user role and the original task last."""
+    sections = []
+    if custom_prompt.strip():
+        sections.append(f"[User Custom Instructions]\n{custom_prompt.strip()}")
+
+    weekdays = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+    current_time = f"{request_time:%Y-%m-%d %H:%M} {weekdays[request_time.weekday()]}"
+    utc_offset = request_time.strftime("%z")
+    if utc_offset:
+        current_time += f" (UTC{utc_offset[:3]}:{utc_offset[3:]})"
+    sections.append(f"[Request Context]\nCurrent time: {current_time}")
+
+    if long_term_memory.strip():
+        sections.append(f"[Long-term Memory]\n{long_term_memory.strip()}")
+    sections.extend(section.strip() for section in context_sections or [] if section.strip())
+    if image_context:
+        sections.append(f"[Image Input]\n{image_context}")
+    sections.append(f"[User Request]\n{message}")
+    return "\n\n".join(sections)
+
+
 @lru_cache(maxsize=1)
 def get_compaction_summary_prompt() -> str:
     """加载重量压缩的结构化摘要提示词。"""
@@ -127,6 +159,7 @@ __all__ = [
     "get_core_prompts",
     "get_agent_prompt_parts",
     "get_agent_prompt",
+    "build_user_prompt",
     "get_compaction_summary_prompt",
     "get_summarization_middleware_prompt",
 ]

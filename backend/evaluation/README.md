@@ -37,13 +37,13 @@
 ```bash
 # LangSmith
 LANGSMITH_API_KEY=your_langsmith_api_key
-LANGSMITH_DATASET_NAME=WordAgent_test
+LANGSMITH_DATASET_NAME=WordAgent_dataset
 LANGSMITH_EVALUATION_PROJECT=WordAgent_evaluation
 
 # 评估模型，支持 OpenAI 兼容接口
 EVAL_OPENAI_API_KEY=your_eval_api_key
 EVAL_OPENAI_BASE_URL=https://api.openai.com/v1
-EVAL_OPENAI_MODEL=gpt-4o
+EVAL_OPENAI_MODEL=gpt-5.5
 
 # 并发数量，默认 5
 EVAL_CONCURRENCY=5
@@ -93,14 +93,14 @@ EVAL_CONCURRENCY=5
 
 ```bash
 cd backend
-uv run python -m evaluation.dataset --name WordAgent_test
+uv run python -m evaluation.dataset --name WordAgent_dataset
 ```
 
 如需导出一份 JSON 方便排查：
 
 ```bash
 cd backend
-uv run python -m evaluation.dataset --name WordAgent_test --output evaluation/outputs/dataset.json
+uv run python -m evaluation.dataset --name WordAgent_dataset --output evaluation/outputs/dataset.json
 ```
 
 ## 运行评估

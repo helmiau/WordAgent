@@ -3819,6 +3819,9 @@ async function editDocxParagraph(paraID, runs) {
     if (/[\r\n]/.test(text)) {
       return { success: false, paraID: normalizedParaID, error: "runs.text 不能包含换行符" };
     }
+    if (run.rStyle != null && (!Array.isArray(run.rStyle) || run.rStyle.length !== 11)) {
+      return { success: false, paraID: normalizedParaID, error: '字符样式未解析，尚未修改文档；请重新读取文档后再编辑' };
+    }
     textRuns.push({ text, rStyle: run.rStyle });
   }
 

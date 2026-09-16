@@ -8,4 +8,4 @@
 - Plan long output as ordered blocks. Split only for payload size, independent validation, or an explicit page/section boundary; keep each block and its neighboring table together.
 - For a fresh-page major block, finish the preceding block, call `insert_break`, and continue from `paragraphAfterBreak.paraID`. Never fake pagination with blank paragraphs.
 - Check every mutating tool result before continuing. On timeout or partial success, follow that tool's recovery instructions rather than blindly repeating it.
-- Work deliberately: finish and verify the current block before moving to the next one. Do not declare completion immediately after the last write; perform the required reviewer pass first.
+- Use successful tool results and existing context to finish each block. Follow the bounded review budget: no routine rereading after successful writes, and no repeated review/edit cycles for acceptable output.

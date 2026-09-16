@@ -32,8 +32,8 @@ os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_ENDPOINT"] = LANGSMITH_ENDPOINT
 os.environ["LANGCHAIN_PROJECT"] = LANGSMITH_PROJECT
 
-# 使用百炼的 API（OpenAI 兼容端点）
-EVAL_OPENAI_MODEL = os.getenv("EVAL_OPENAI_MODEL") or "gpt-5.1"
+# 评估模型使用 OpenAI 兼容端点
+EVAL_OPENAI_MODEL = os.getenv("EVAL_OPENAI_MODEL") or "gpt-5.5"
 EVAL_OPENAI_API_KEY = os.getenv("EVAL_OPENAI_API_KEY") or ""
 EVAL_OPENAI_BASE_URL = os.getenv("EVAL_OPENAI_BASE_URL") or "https://api.openai.com/v1"
 

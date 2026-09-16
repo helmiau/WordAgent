@@ -1,6 +1,7 @@
 import asyncio
 import json
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 from langchain_core.messages import AIMessage, AIMessageChunk
 
@@ -37,7 +38,7 @@ def test_single_agent_does_not_load_business_history(monkeypatch) -> None:
 
     async def run() -> None:
         arguments = {
-            "checkpointer": object(),
+            "checkpointer": SimpleNamespace(aget_tuple=AsyncMock(return_value=None)),
             "session_id": 61,
             "chat_id": "chat-61",
             "message": "继续",
@@ -59,6 +60,7 @@ def test_single_agent_does_not_load_business_history(monkeypatch) -> None:
 def test_single_agent_summary_tokens_not_forwarded(monkeypatch) -> None:
     class FakeGraph:
         def stream(self, **_kwargs):
+            yield "custom", {"type": "context_compaction", "status": "started", "content": "压缩开始"}
             yield (
                 "messages",
                 (
@@ -66,6 +68,7 @@ def test_single_agent_summary_tokens_not_forwarded(monkeypatch) -> None:
                     {"langgraph_node": "NotifyingSummarizationMiddleware.before_model", "lc_source": "summarization"},
                 ),
             )
+            yield "custom", {"type": "context_compaction", "status": "completed", "content": "压缩完成"}
             yield (
                 "messages",
                 (AIMessageChunk(content="用户可见回答"), {"langgraph_node": "model"}),
@@ -106,6 +109,59 @@ def test_single_agent_summary_tokens_not_forwarded(monkeypatch) -> None:
     rendered = "".join(output)
     assert "内部摘要，不应显示" not in rendered
     assert "用户可见回答" in rendered
+    events = [json.loads(chunk[6:]) for chunk in output if chunk.startswith("data: {")]
+    assert [event["status"] for event in events if event.get("type") == "context_compaction"] == [
+        "started",
+        "completed",
+    ]
+
+
+def test_compaction_notifications_are_sent_and_saved(monkeypatch):
+    websocket = _WebSocket(checkpointer=object())
+    saved = []
+    events = [
+        {"type": "context_compaction", "status": "started", "content": "压缩开始"},
+        {"type": "context_compaction", "status": "completed", "content": "压缩完成"},
+        {"type": "text", "content": "继续回答"},
+    ]
+
+    async def stream(**_kwargs):
+        for event in events:
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    async def persist(**kwargs):
+        saved.append(kwargs)
+
+    async def record_usage(**_kwargs):
+        return None
+
+    monkeypatch.setattr(chat, "_single_agent_stream_with_state", stream)
+    monkeypatch.setattr(chat, "_persist_chat_turn", persist)
+    monkeypatch.setattr(chat, "record_token_usage", record_usage)
+    monkeypatch.setattr(chat, "_extract_long_term_memory_sync", lambda *_args: None)
+
+    async def run():
+        await chat._run_ws_stream(
+            websocket=websocket,
+            chat_id="test-compaction",
+            session_id="test-session",
+            message="继续",
+            mode="agent",
+            model="fake",
+            provider="fake",
+            document_range=None,
+            document_meta=None,
+        )
+        await chat.background_tasks.shutdown()
+
+    asyncio.run(run())
+    assert [json.loads(payload) for payload in websocket.sent] == [*events, {"type": "done"}]
+    assert len(saved) == 1
+    assert saved[0]["content_parts"] == [
+        {"type": "status", "content": "压缩完成", "contextCompaction": True, "loading": False},
+        {"type": "text", "content": "继续回答"},
+    ]
 
 
 def test_single_agent_large_image_is_not_saved_in_checkpoint_input(monkeypatch) -> None:

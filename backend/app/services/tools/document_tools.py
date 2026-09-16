@@ -17,6 +17,7 @@ from langchain_core.tools import tool
 from langgraph.config import get_stream_writer
 
 from app.core.config import get_temp_dir, get_wence_data_dir, get_wence_project_dir
+from app.services.document_edit_policy import edit_style_context
 from app.core.logging import get_logger
 
 from .callback import (
@@ -923,12 +924,17 @@ def _delete_document_impl(paraIDs: list[int | str], docId: DocIdInput) -> dict:
         "docId": resolved_doc_id,
         "paraIDs": deduped_para_ids,
         "requestedCount": len(deduped_para_ids),
-        "deletedCount": max(0, deleted_count or 0),
+        "deletedCount": None if isinstance(frontend_result, dict) and frontend_result.get("rollbackVerified") is False
+        else max(0, deleted_count or 0),
         "missingParaIDs": missing_para_ids,
         "failedParaIDs": failed_para_ids,
         "replacementInsertParaID": replacement_insert_para_id,
         "requestId": request_id,
     }
+    if isinstance(frontend_result, dict):
+        for key in ("rollbackVerified", "requiresRead", "unrestoredParaIDs", "rollbackError", "paragraph"):
+            if key in frontend_result:
+                result[key] = frontend_result[key]
     if stopped:
         result["error"] = "stopped_by_user"
     elif frontend_error:
@@ -1000,6 +1006,15 @@ def _edit_document_impl(paraID: RequiredParaIdInput, runs: list[Run], docId: Doc
                 "paraID": normalized_para_id,
                 "error": "edit_document runs.text must not contain newline characters; use separate paragraphs instead",
             }
+        style_ref = run_dict.get("rStyle")
+        if style_ref is not None:
+            style = (edit_style_context.get() or {}).get(style_ref) if isinstance(style_ref, str) else None
+            if not isinstance(style, list) or len(style) != 11:
+                return {"success": False, "docId": resolved_doc_id, "paraID": normalized_para_id,
+                        "errorCode": "unresolved_character_style", "requiresRead": True,
+                        "error": f"无法解析字符样式 {style_ref}。请 read_document(full) 读取该文档，使用最近返回的 rStyle；尚未修改文档。"}
+            # Resolve only rStyle. pStyle and paragraph marks are never edited.
+            run_dict["rStyle"] = list(style)
         normalized_runs.append(run_dict)
 
     if unsupported_runs:
@@ -1040,6 +1055,10 @@ def _edit_document_impl(paraID: RequiredParaIdInput, runs: list[Run], docId: Doc
         "runCount": len(normalized_runs),
         "requestId": request_id,
     }
+    if isinstance(frontend_result, dict):
+        for key in ("rollbackVerified", "requiresRead", "unrestoredParaIDs", "rollbackError", "paragraph"):
+            if key in frontend_result:
+                result[key] = frontend_result[key]
     if stopped:
         result["error"] = "stopped_by_user"
     elif frontend_error:

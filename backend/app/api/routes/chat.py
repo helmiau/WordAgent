@@ -23,7 +23,8 @@ from app.services.agent.tools import (
     clear_stop,
 )
 from app.services.background_tasks import background_tasks
-from app.services.memory import single_agent_thread_lock
+from app.services.memory import single_agent_thread_lock, build_runtime_thread_id
+from app.services.human_input import load_pending_questions, answer_command
 from app.services.session_service import SessionService
 from app.services.token_usage import record_token_usage
 from app.services.utils import _get_env_int, normalize_uuid
@@ -66,8 +67,7 @@ def _extract_long_term_memory_sync(memory_conversation: dict | None, model: str,
         return
 
     conversation = (
-        f"USER: {memory_conversation.get('user', '')}\n\n"
-        f"ASSISTANT: {memory_conversation.get('assistant', '')}"
+        f"USER: {memory_conversation.get('user', '')}\n\nASSISTANT: {memory_conversation.get('assistant', '')}"
     )
     sync_llm = create_sync_llm_client(model, provider, temperature=MEMORY_EXTRACT_TEMPERATURE)
     if sync_llm:
@@ -326,6 +326,7 @@ async def chat_websocket(websocket: WebSocket):
                         attached_files,
                         enable_thinking,
                         session_id,
+                        data.get("userResponse"),
                     )
                 )
 
@@ -499,9 +500,33 @@ async def _single_agent_stream_with_state(
     mode: str,
     attached_files: list,
     enable_thinking: bool,
+    user_response: dict | None = None,
 ):
     """在同一 thread 锁内运行完整的单智能体流。"""
     async with single_agent_thread_lock(session_id, chat_id):
+        config = {"configurable": {"thread_id": build_runtime_thread_id(session_id, chat_id)}}
+        interrupts, pending = await load_pending_questions(checkpointer, config)
+        if user_response is None and pending:
+            # Never append a fresh HumanMessage on top of an unanswered tool call.
+            yield f"data: {json.dumps(pending, ensure_ascii=False)}\n\n"
+            yield "data: [DONE]\n\n"
+            return
+        resume_kwargs = {}
+        if user_response is not None:
+            resume_kwargs["resume_command"] = answer_command(interrupts, user_response)
+            by_id = {item["id"]: item["answer"].strip() for item in user_response["answers"]}
+            resume_kwargs["resume_tool_log"] = [
+                {"tool": "ask_user", "input": question, "output": by_id[question["id"]], "error": False}
+                for question in pending["questions"]
+            ]
+            saved = await checkpointer.aget_tuple(config)
+            original = saved.checkpoint.get("channel_values", {}).get("request_context", {})
+            document_range = original.get("document_range", document_range)
+            document_meta = original.get("document_meta", document_meta)
+            model = original.get("model", model)
+            provider = original.get("provider", provider)
+            mode = original.get("mode", mode)
+            enable_thinking = original.get("enable_thinking", enable_thinking)
         async for chunk in single_agent_stream(
             message=message,
             document_range=document_range,
@@ -514,6 +539,7 @@ async def _single_agent_stream_with_state(
             enable_thinking=enable_thinking,
             session_id=session_id,
             checkpointer=checkpointer,
+            **resume_kwargs,
         ):
             yield chunk
 
@@ -597,6 +623,7 @@ async def _run_ws_stream(
     attached_files: list | None = None,
     enable_thinking: bool = True,
     session_id: str | None = None,
+    user_response: dict | None = None,
 ):
     """在 WebSocket 上运行单智能体流式处理。"""
     mode = _normalize_mode(mode)
@@ -627,10 +654,26 @@ async def _run_ws_stream(
 
     def _record_payload(payload: dict):
         ptype = payload.get("type")
-        if ptype == "text":
+        if ptype == "ask_user":
+            assistant_text_parts.append("\n".join(item["question"] for item in payload.get("questions", [])))
+            content_parts.append({"type": "ask_user", "request": payload})
+        elif ptype == "text":
             _append_text_part(str(payload.get("content") or ""))
         elif ptype == "thinking":
             thinking_parts.append(str(payload.get("content") or ""))
+        elif ptype == "context_compaction":
+            part = {
+                "type": "status",
+                "content": str(payload.get("content") or ""),
+                "contextCompaction": True,
+                "loading": payload.get("status") == "started",
+            }
+            for index in range(len(content_parts) - 1, -1, -1):
+                if content_parts[index].get("contextCompaction"):
+                    content_parts[index] = part
+                    break
+            else:
+                content_parts.append(part)
         elif ptype in {
             "status",
             "read_document",
@@ -688,8 +731,6 @@ async def _run_ws_stream(
 
     for _attempt in range(1):
         try:
-            _done_sent = False
-
             async def _on_idle_warn():
                 # 60s 没有 chunk：给前端一个轻提示，避免用户以为卡死
                 try:
@@ -749,6 +790,7 @@ async def _run_ws_stream(
                 mode=mode,
                 attached_files=attached_files or [],
                 enable_thinking=enable_thinking,
+                user_response=user_response,
             )
 
             # Keepalive 任务：长 LLM 思考期间（一直没 chunk）也每 KEEPALIVE_INTERVAL
@@ -774,9 +816,8 @@ async def _run_ws_stream(
                     if chunk.startswith("data: "):
                         payload = chunk[6:].strip()
                         if payload == "[DONE]":
-                            if not _done_sent:
-                                await _send(json.dumps({"type": "done"}, ensure_ascii=False))
-                                _done_sent = True
+                            # Finish persistence before allowing the client to submit a resume.
+                            pass
                         else:
                             try:
                                 parsed_payload = json.loads(payload)
@@ -810,9 +851,7 @@ async def _run_ws_stream(
                         except Exception as e:
                             logger.error(f"[WebSocket] 解析 tool_json 失败: {e}")
 
-                # 确保发送一次 done（防止 agent 异常时未发送）
-                if not _done_sent:
-                    await _send(json.dumps({"type": "done"}, ensure_ascii=False))
+                # Completion is sent below, after saving this turn.
             finally:
                 keepalive_task.cancel()
                 try:
@@ -855,6 +894,7 @@ async def _run_ws_stream(
                 attached_files=attached_files or None,
             )
 
+            await _send(json.dumps({"type": "done"}, ensure_ascii=False))
             return  # 正常结束
         except _IdleAbort:
             # 看门狗已经处理了通知和 agent 停止，这里直接退出，不重试

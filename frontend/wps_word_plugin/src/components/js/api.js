@@ -696,7 +696,8 @@ function chatStream(message, options = {}) {
     selectionContext = null,
     files = [],
     enableThinking = true,
-    sessionId = null
+    sessionId = null,
+    userResponse = null
   } = options;
 
   // 重置完成状态
@@ -732,6 +733,7 @@ function chatStream(message, options = {}) {
         model,
         provider,
         sessionId,
+        userResponse,
         documentRange,
         selectionContext,
         documentMeta,
@@ -1223,6 +1225,31 @@ async function fetchAvailableModels({ baseUrl, apiKey, apiType = 'openai' }) {
   }
 }
 
+/** Test the selected model using the current provider form values. */
+async function testModelConnection({ baseUrl, apiKey, apiType = 'openai', model }) {
+  const result = await request('/api/chat/providers/test-connection', {
+    method: 'POST',
+    timeout: 25000,
+    body: {
+      base_url: baseUrl,
+      api_key: apiKey,
+      api_type: apiType,
+      model
+    }
+  });
+  if (!result.success || !result.data?.success) {
+    const validationErrors = result.data?.detail;
+    const detail = Array.isArray(validationErrors)
+      ? validationErrors.map(error => `${error.loc?.at(-1) || ''}: ${error.msg}`).join('; ')
+      : validationErrors;
+    throw new Error(result.data?.error || detail || result.error || '连接测试失败');
+  }
+  if (!Number.isFinite(result.data.latency_ms) || result.data.latency_ms < 0) {
+    throw new Error('连接测试返回了无效的延迟');
+  }
+  return result.data;
+}
+
 // ============== 设置管理 API ==============
 
 /**
@@ -1520,6 +1547,7 @@ export default {
   chatStream,
   getModels,
   fetchAvailableModels,
+  testModelConnection,
 
   // 文档处理
   parseDocumentRange,
@@ -1577,6 +1605,7 @@ export {
   chatStream,
   getModels,
   fetchAvailableModels,
+  testModelConnection,
   parseDocumentRange,
   getDocumentById,
 

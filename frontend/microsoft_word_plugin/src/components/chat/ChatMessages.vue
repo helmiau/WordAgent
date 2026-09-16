@@ -137,6 +137,14 @@
                   </div>
                 </div>
                 <!-- Tool 输出压缩信息 -->
+                <UserQuestion
+                  v-else-if="part.type === 'ask_user'"
+                  :request="part.request"
+                  :response="part.response || null"
+                  :disabled="isLoading || questionBusy || !part.pending"
+                  :readonly="!part.pending"
+                  @answer="$emit('answer-question', $event)"
+                />
                 <div v-else-if="part.type === 'tool_compress'" class="tool-compress-line">
                   <span class="tool-compress-icon">📦</span>
                   <span class="tool-compress-text">{{ part.content }}</span>
@@ -190,6 +198,7 @@
 
 <script>
 import MarkdownIt from 'markdown-it';
+import UserQuestion from './UserQuestion.vue';
 import { t } from '../../i18n/index.js';
 
 const md = new MarkdownIt({
@@ -201,13 +210,15 @@ const md = new MarkdownIt({
 
 export default {
   name: 'ChatMessages',
+  components: { UserQuestion },
   props: {
+    questionBusy: { type: Boolean, default: false },
     messages: { type: Array, required: true },
     isLoading: { type: Boolean, default: false },
     hasHistory: { type: Boolean, default: false },
     historyLoaded: { type: Boolean, default: false }
   },
-  emits: ['load-history', 'insert-to-word', 'copy', 'retry', 'revert', 'toggle-thinking'],
+  emits: ['load-history', 'insert-to-word', 'copy', 'retry', 'revert', 'toggle-thinking', 'answer-question'],
   data() {
     return {
       imgMenuVisible: false,
@@ -381,6 +392,7 @@ export default {
 <style scoped>
 .chat-messages {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 10px;
   display: flex;

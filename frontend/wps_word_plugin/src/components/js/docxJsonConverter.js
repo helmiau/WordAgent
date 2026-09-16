@@ -3407,6 +3407,9 @@ function editDocxParagraph(paraID, runs, docOverride) {
       if (/[\r\n]/.test(text)) {
         return { success: false, paraID: normalizedParaID, error: 'runs.text 不能包含换行符' };
       }
+      if (run.rStyle != null && (!Array.isArray(run.rStyle) || run.rStyle.length !== 11)) {
+        return { success: false, paraID: normalizedParaID, error: '字符样式未解析，尚未修改文档；请重新读取文档后再编辑' };
+      }
       textRuns.push({ text, rStyle: run.rStyle });
     }
   }
@@ -3452,13 +3455,13 @@ function editDocxParagraph(paraID, runs, docOverride) {
         font.Superscript = rStyle[RSTYLE.SUPERSCRIPT] ? -1 : 0;
         font.Subscript = rStyle[RSTYLE.SUBSCRIPT] ? -1 : 0;
         font.Underline = rStyle[RSTYLE.UNDERLINE] || 0;
-        if (rStyle[RSTYLE.UNDERLINE_COLOR] && rStyle[RSTYLE.UNDERLINE_COLOR] !== '#000000') {
+        if (rStyle[RSTYLE.UNDERLINE_COLOR]) {
           font.UnderlineColor = parseRGBColor(rStyle[RSTYLE.UNDERLINE_COLOR]);
         }
-        if (rStyle[RSTYLE.COLOR] && rStyle[RSTYLE.COLOR] !== '#000000') {
+        if (rStyle[RSTYLE.COLOR]) {
           font.Color = parseRGBColor(rStyle[RSTYLE.COLOR]);
         }
-        if (rStyle[RSTYLE.HIGHLIGHT]) {
+        if (rStyle[RSTYLE.HIGHLIGHT] != null) {
           try {
             insertedRange.HighlightColorIndex = rStyle[RSTYLE.HIGHLIGHT]; 
           } catch (error) {
