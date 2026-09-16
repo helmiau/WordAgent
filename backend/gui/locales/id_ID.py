@@ -121,6 +121,6 @@ STRINGS = {
         },
         "dialog": {"saveManifest": "Simpan manifest.xml", "xmlFilter": "File XML (*.xml)"},
     },
-    "language": {"label": "Bahasa", "english": "English", "chinese": "简体中文", "indonesian": "Bahasa Indonesia"},
+    "language": {"label": "Bahasa", "english": "English", "chinese": "简体中文", "indonesian": "Bahasa Indonesia", "japanese": "Bahasa Jepang", "korean": "Bahasa Korea", "vietnamese": "Bahasa Vietnam"},
     "common": {"unknownVersion": "Versi tidak diketahui", "save": "Simpan", "cancel": "Batal"},
 }

@@ -104,6 +104,6 @@ STRINGS = {
         },
         "dialog": {"saveManifest": "保存 manifest.xml", "xmlFilter": "XML 文件 (*.xml)"},
     },
-    "language": {"label": "界面语言", "english": "English", "chinese": "简体中文", "indonesian": "Bahasa Indonesia"},
+    "language": {"label": "界面语言", "english": "English", "chinese": "简体中文", "indonesian": "Bahasa Indonesia", "japanese": "日语", "korean": "韩语", "vietnamese": "越南语"},
     "common": {"unknownVersion": "未知版本", "save": "保存", "cancel": "取消"},
 }

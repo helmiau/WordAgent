@@ -193,6 +193,9 @@ class HomeInterface(QWidget):
             ("en-US", "English"),
             ("zh-CN", "简体中文"),
             ("id-ID", "Bahasa Indonesia"),
+            ("ja-JP", "日本語"),
+            ("ko-KR", "한국어"),
+            ("vi-VN", "Tiếng Việt"),
         ]
         self._lang_picker.addItems([name for _, name in self._lang_items])
         self._lang_picker.setCurrentIndex(

@@ -1,4 +1,4 @@
-STRINGS = {
+﻿STRINGS = {
     "app": {"name": "WenCe AI"},
     "tray": {"show": "Show", "quit": "Quit WenCe AI", "tooltip": "WenCe AI"},
     "nav": {
@@ -95,7 +95,7 @@ STRINGS = {
             "2. Right-click folder -&gt; Properties -&gt; Sharing -&gt; Share -&gt; Everyone -&gt; Share and note the network path.<br/>"
             "3. Open Microsoft Word: File -&gt; Options -&gt; Trust Center -&gt; Trust Center Settings -&gt; Trusted Add-in Catalogs, enter network path and Add Catalog, restart Word.<br/>"
             "4. If panel doesn't appear: File -&gt; Options -&gt; Customize Ribbon, add Developer to Main Tabs. Click Developer -&gt; Add-ins -&gt; Shared Folder -&gt; WenCe AI Assistant.<br/><br/>"
-            "【Detailed guide: <a href='https://visresearch.github.io/WordAgent/' style='color: #2563eb; text-decoration: underline;'>https://visresearch.github.io/WordAgent/</a>】"
+            "πÇÉDetailed guide: <a href='https://visresearch.github.io/WordAgent/' style='color: #2563eb; text-decoration: underline;'>https://visresearch.github.io/WordAgent/</a>πÇæ"
         ),
         "buttons": {
             "download": "Download manifest.xml",
@@ -121,6 +121,7 @@ STRINGS = {
         },
         "dialog": {"saveManifest": "Save manifest.xml", "xmlFilter": "XML Files (*.xml)"},
     },
-    "language": {"label": "Language", "english": "English", "chinese": "简体中文", "indonesian": "Bahasa Indonesia", "japanese": "Japanese", "korean": "Korean", "vietnamese": "Vietnamese"},
+    "language": {"label": "Language", "english": "English", "chinese": "τ«ÇΣ╜ôΣ╕¡µûç", "indonesian": "Bahasa Indonesia"},
     "common": {"unknownVersion": "Unknown version", "save": "Save", "cancel": "Cancel"},
 }
+

@@ -1,4 +1,4 @@
-"""GUI i18n — zh-CN / en-US / id-ID with persistence via user_settings.json + QSettings."""
+"""GUI i18n — en-US / zh-CN / id-ID / ja-JP / ko-KR / vi-VN with persistence via user_settings.json + QSettings."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
-SUPPORTED = ("en-US", "zh-CN", "id-ID")
+SUPPORTED = ("en-US", "zh-CN", "id-ID", "ja-JP", "ko-KR", "vi-VN")
 DEFAULT = "en-US"
 STORAGE_KEY = "wence/interface-language"
 
@@ -25,8 +25,26 @@ try:
     from gui.locales.id_ID import STRINGS as ID_ID
 except ImportError:
     ID_ID = {}
-
-MESSAGES = {"en-US": EN_US, "zh-CN": ZH_CN, "id-ID": ID_ID}
+try:
+    from gui.locales.ja_JP import STRINGS as JA_JP
+except ImportError:
+    JA_JP = {}
+try:
+    from gui.locales.ko_KR import STRINGS as KO_KR
+except ImportError:
+    KO_KR = {}
+try:
+    from gui.locales.vi_VN import STRINGS as VI_VN
+except ImportError:
+    VI_VN = {}
+MESSAGES = {
+    "en-US": EN_US,
+    "zh-CN": ZH_CN,
+    "id-ID": ID_ID,
+    "ja-JP": JA_JP,
+    "ko-KR": KO_KR,
+    "vi-VN": VI_VN,
+}
 
 
 def normalize_locale(value: str | None) -> str:
@@ -45,6 +63,18 @@ def normalize_locale(value: str | None) -> str:
         return "zh-CN"
     if v.startswith("zh"):
         return "zh-CN"
+    if v in ("ja-jp", "ja", "ja_jp"):
+        return "ja-JP"
+    if v.startswith("ja"):
+        return "ja-JP"
+    if v in ("ko-kr", "ko", "ko_kr"):
+        return "ko-KR"
+    if v.startswith("ko"):
+        return "ko-KR"
+    if v in ("vi-vn", "vi", "vi_vn"):
+        return "vi-VN"
+    if v.startswith("vi"):
+        return "vi-VN"
     return DEFAULT
 
 
@@ -112,11 +142,17 @@ def _detect_system_locale() -> str:
         qloc = QLocale.system().name()  # e.g. "en_US", "zh_CN", "id_ID"
         qloc = qloc.replace("_", "-")
         norm = normalize_locale(qloc)
-        # Only trust zh-CN detection; otherwise default to en-US
+        # Only trust supported-locale detection; otherwise default to en-US
         if qloc.lower().startswith("zh"):
             return "zh-CN"
         if qloc.lower().startswith("id"):
             return "id-ID"
+        if qloc.lower().startswith("ja"):
+            return "ja-JP"
+        if qloc.lower().startswith("ko"):
+            return "ko-KR"
+        if qloc.lower().startswith("vi"):
+            return "vi-VN"
     except Exception:
         pass
     try:
@@ -127,6 +163,12 @@ def _detect_system_locale() -> str:
                 return "zh-CN"
             if loc.lower().startswith("id"):
                 return "id-ID"
+            if loc.lower().startswith("ja"):
+                return "ja-JP"
+            if loc.lower().startswith("ko"):
+                return "ko-KR"
+            if loc.lower().startswith("vi"):
+                return "vi-VN"
     except Exception:
         pass
     return DEFAULT
