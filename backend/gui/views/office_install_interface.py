@@ -168,12 +168,12 @@ class OfficeInstallInterface(QWidget):
         layout.setContentsMargins(24, 20, 24, 24)
         layout.setSpacing(12)
 
-        title = SubtitleLabel(t("office.title"), self)
-        layout.addWidget(title)
+        self._title_label = SubtitleLabel(t("office.title"), self)
+        layout.addWidget(self._title_label)
 
-        subtitle = CaptionLabel(t("office.subtitle"), self)
-        subtitle.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
-        layout.addWidget(subtitle)
+        self._subtitle_label = CaptionLabel(t("office.subtitle"), self)
+        self._subtitle_label.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
+        layout.addWidget(self._subtitle_label)
 
         card = CardWidget(self)
         card_layout = QVBoxLayout(card)
@@ -220,6 +220,8 @@ class OfficeInstallInterface(QWidget):
         layout.addStretch()
 
         self._update_service_status()
+        from gui.i18n import subscribe_locale_changed
+        subscribe_locale_changed(self._retranslate)
         QTimer.singleShot(0, self._on_start_service)
 
     def _update_service_status(self):
@@ -447,6 +449,18 @@ class OfficeInstallInterface(QWidget):
                 position=InfoBarPosition.TOP,
                 duration=5000,
             )
+
+    def _retranslate(self, _locale: str = ""):
+        """Update all translatable labels on this page."""
+        self._title_label.setText(t("office.title"))
+        self._subtitle_label.setText(t("office.subtitle"))
+        self._usage_label.setText(t("office.usage"))
+        self._download_btn.setText(t("office.buttons.download"))
+        self._start_btn.setText(t("office.buttons.start"))
+        self._install_cert_btn.setText(t("office.buttons.installCert"))
+        self._open_browser_btn.setText(t("office.buttons.openBrowser"))
+        self._stop_btn.setText(t("office.buttons.stop"))
+        self._update_service_status()
 
     def closeEvent(self, event):
         """界面关闭时自动停止后台服务。"""
