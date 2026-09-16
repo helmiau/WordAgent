@@ -9,9 +9,11 @@ import time
 import traceback
 import uuid
 from collections.abc import AsyncGenerator
+from datetime import datetime
 from typing import Any
 
 from langchain.agents import create_agent
+from langchain.agents.middleware import AgentState
 from langchain_core.messages import (
     AIMessage,
     AIMessageChunk,
@@ -21,7 +23,7 @@ from langchain_core.messages import (
 from langchain_core.messages.utils import count_tokens_approximately
 
 from app.core.logging import get_logger
-from app.services.agent.prompts import get_core_prompts
+from app.services.agent.prompts import build_user_prompt, get_core_prompts
 from app.services.agent.skills import build_skills_prompt
 from app.services.agent.tools import (
     _current_chat_id,
@@ -42,6 +44,7 @@ from app.services.document import (
 )
 from app.services.llm_client import init_chat_model_with_reasoning, resolve_model, supports_thinking
 from app.services.memory import build_runtime_thread_id
+from app.services.human_input import pending_questions
 from app.services.middleware import MAX_CONTEXT_TOKENS, build_agent_middleware
 from app.services.tools.tool_log import build_tool_json, set_current_tool_log
 from app.services.token_usage import normalize_usage_metadata
@@ -50,6 +53,11 @@ from app.services.utils import try_init_langsmith
 logger = get_logger(__name__)
 
 MAX_CHECKPOINT_IMAGE_BYTES = 512 * 1024
+
+
+class WordAgentState(AgentState):
+    # Keep the original document/model context while a human clarification is pending.
+    request_context: dict
 
 
 def _message_token_usage(message) -> dict[str, int]:
@@ -384,6 +392,8 @@ async def process_writing_request_stream(
     enable_thinking: bool = True,
     session_id: str | None = None,
     checkpointer=None,
+    resume_command=None,
+    resume_tool_log: list[dict] | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     使用 LangChain create_agent 处理写作请求并流式输出。
@@ -423,17 +433,8 @@ async def process_writing_request_stream(
     logger.info(f"[Agent] 已注册 {len(tools)} 个业务工具，中间件将追加 write_todos")
     logger.debug(f"[Agent] 工具列表: {[t.name for t in tools]}")
 
-    # 构建系统提示
+    # 系统提示只保留模式规则及工具/技能说明，不混入逐轮变化的用户上下文。
     system_parts = list(get_core_prompts(mode=mode))
-
-    # 注入长期记忆（由用户设置开关控制）
-    from app.services.memory import build_long_term_memory_prompt, is_long_term_memory_enabled
-
-    if is_long_term_memory_enabled():
-        long_term_prompt = build_long_term_memory_prompt()
-        if long_term_prompt:
-            system_parts.append(long_term_prompt)
-            logger.info("[Agent] 已注入长期记忆")
 
     if mode in {"agent", "ask"}:
         mcp_prompt = build_mcp_tools_prompt(mcp_tools)
@@ -442,20 +443,10 @@ async def process_writing_request_stream(
     skills_prompt = build_skills_prompt()
     if skills_prompt:
         system_parts.append(skills_prompt)
-    from app.services.llm_client import get_custom_prompt
-
-    custom_prompt = get_custom_prompt()
-    if custom_prompt:
-        system_parts.append(f"User custom instructions: {custom_prompt}")
-    from datetime import datetime
-
-    weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    now = datetime.now()
-    current_time = now.strftime("%Y-%m-%d %H:%M") + " " + weekdays[now.weekday()]
-    system_parts.append(f"Current time: {current_time}")
     system_prompt = "\n\n".join(system_parts)
 
     app = create_agent(
+        state_schema=WordAgentState,
         model=llm,
         tools=tools,
         system_prompt=system_prompt,
@@ -466,7 +457,7 @@ async def process_writing_request_stream(
         ),
         checkpointer=checkpointer,
     )
-    tool_log: list[dict] = []
+    tool_log: list[dict] = list(resume_tool_log or [])
     meta_list = normalize_document_meta(document_meta)
     document_name_by_id = build_document_name_by_id(meta_list)
     document_meta_for_context = meta_list[0] if len(meta_list) == 1 else meta_list
@@ -484,8 +475,21 @@ async def process_writing_request_stream(
         # Checkpointer 自动恢复历史；本轮只提交当前用户消息。
         messages = []
 
-        # 构建用户消息
-        user_content = message
+        # 每轮只读取一次动态上下文，图片降级/网络重试复用相同内容。
+        from app.services.llm_client import get_custom_prompt
+        from app.services.memory import build_long_term_memory_prompt, is_long_term_memory_enabled
+
+        long_term_prompt = ""
+        if is_long_term_memory_enabled():
+            long_term_prompt = build_long_term_memory_prompt()
+            if long_term_prompt:
+                logger.info("[Agent] 已将长期记忆注入用户消息")
+        user_prompt_options = {
+            "custom_prompt": get_custom_prompt(),
+            "request_time": datetime.now().astimezone(),
+            "long_term_memory": long_term_prompt,
+        }
+        context_sections = []
         if document_range:
             # 构建文档范围描述
             range_lines = []
@@ -493,26 +497,27 @@ async def process_writing_request_stream(
                 range_lines.append(format_document_range_line(r, document_name_by_id))
 
             if mode == "ask":
-                user_content = (
-                    f"{message}\n\n"
-                    f"User has selected the following document content:\n"
+                selection_context = (
+                    "[Selected Document Ranges]\n"
+                    "User has selected the following document content:\n"
                     + "\n".join(f"  - {line}" for line in range_lines)
                     + "\nPlease answer based on the above content."
                 )
             else:
-                user_content = (
-                    f"{message}\n\n"
-                    f"Please process based on the user-selected document content:\n"
+                selection_context = (
+                    "[Selected Document Ranges]\n"
+                    "Please process based on the user-selected document content:\n"
                     + "\n".join(f"  - {line}" for line in range_lines)
                 )
+            context_sections.append(selection_context)
             logger.info(f"[Agent] 文档范围: {document_range}")
 
         # 注入文档全局元信息（支持多文档）
         if meta_list:
             # 使用 JSON 格式输出元信息（紧凑模式，不换行）
             meta_json = json.dumps(meta_list, ensure_ascii=False, separators=(",", ":"))
-            user_content += (
-                "\n\n[Document Global Metadata]"
+            context_sections.append(
+                "[Document Global Metadata]"
                 "\nThe following fields come from frontend document state and are not body content."
                 f"\n{meta_json}"
                 "\nUse these metadata fields in task analysis. The first document in the array is the active document the user is currently viewing."
@@ -561,8 +566,8 @@ async def process_writing_request_stream(
                     logger.info(f"[Agent] 📄 附件文件引用: {filename} -> {project_path}")
 
         if file_reference_parts:
-            user_content += (
-                "\n\n[Attached Files]"
+            context_sections.append(
+                "[Attached Files]"
                 "\nFiles are already uploaded under wence_data/project."
                 "\nDo NOT assume file contents from metadata."
                 "\nOnly project_path is shown; it is relative to that project root (e.g. uploads/...)."
@@ -572,13 +577,20 @@ async def process_writing_request_stream(
                 "\n" + "\n".join(file_reference_parts)
             )
 
-        image_user_content = user_content
+        image_context = ""
         if image_content_parts:
-            image_user_content += "\nAttached images are also provided as direct model image inputs in this request. Use the visual input directly; do not call `read_file` for these image files unless the user explicitly asks for OCR text or file metadata."
+            image_context = "Attached images are also provided as direct model image inputs in this request. Use the visual input directly; do not call `read_file` for these image files unless the user explicitly asks for OCR text or file metadata."
 
-        text_only_user_content = user_content
+        text_only_image_context = ""
         if attached_image_count:
-            text_only_user_content += "\nImportant: direct image input is unavailable in this retry. Use `read_file(path)` on the image project_path when image content is needed."
+            text_only_image_context = "Direct image input is unavailable in this request. Use `read_file(path)` on the image project_path when image content is needed."
+
+        image_user_content = build_user_prompt(
+            message, context_sections=context_sections, image_context=image_context, **user_prompt_options
+        )
+        text_only_user_content = build_user_prompt(
+            message, context_sections=context_sections, image_context=text_only_image_context, **user_prompt_options
+        )
 
         # 构建 HumanMessage
         message_id = str(uuid.uuid4())
@@ -586,7 +598,7 @@ async def process_writing_request_stream(
             human_content = [{"type": "text", "text": image_user_content}] + image_content_parts
             messages.append(HumanMessage(content=human_content, id=message_id))
         else:
-            messages.append(HumanMessage(content=user_content, id=message_id))
+            messages.append(HumanMessage(content=text_only_user_content, id=message_id))
         text_only_messages = list(messages[:-1]) + [HumanMessage(content=text_only_user_content, id=message_id)]
 
         logger.debug(f"[Agent] 消息数量: {len(messages)}")
@@ -598,7 +610,7 @@ async def process_writing_request_stream(
 
         # 队列用于线程间传递流式数据
         queue: asyncio.Queue = asyncio.Queue()
-        has_tool_result = False
+        has_tool_result = bool(resume_tool_log)
         _collected_text_parts: list[str] = []
         _assistant_text_for_memory_parts: list[str] = []
         _has_streamed_text_chunks = False
@@ -608,6 +620,7 @@ async def process_writing_request_stream(
         _request_token_usage = {"input_tokens": 0, "output_tokens": 0, "cached_tokens": 0}
         _chunk_token_usage = {"input_tokens": 0, "output_tokens": 0, "cached_tokens": 0}
         _conversation_history: list = list(messages)
+        _waiting_for_user = False
 
         # LangSmith tracing
         langsmith_config = None
@@ -651,8 +664,13 @@ async def process_writing_request_stream(
                     _config.update(langsmith_config)
 
                 stream_kwargs = {
-                    "input": {"messages": messages},
-                    "stream_mode": ["messages", "custom"],
+                    "input": resume_command if resume_command is not None else {
+                        "messages": messages,
+                        "request_context": {"document_range": document_range, "document_meta": document_meta,
+                                            "model": model, "provider": provider, "mode": mode,
+                                            "enable_thinking": enable_thinking},
+                    },
+                    "stream_mode": ["messages", "custom", "updates"],
                     "config": _config,
                 }
 
@@ -675,10 +693,10 @@ async def process_writing_request_stream(
                         asyncio.run_coroutine_threadsafe(queue.put(None), loop)
                         return
                     except Exception as e:
-                        if image_content_parts and not image_fallback_applied and _is_image_input_unsupported_error(e):
+                        if resume_command is None and image_content_parts and not image_fallback_applied and _is_image_input_unsupported_error(e):
                             image_fallback_applied = True
                             logger.warning("[Agent] ⚠️ 当前端点不支持图像输入，自动降级为文本模式重试")
-                            stream_kwargs["input"] = {"messages": text_only_messages}
+                            stream_kwargs["input"] = {**stream_kwargs["input"], "messages": text_only_messages}
                             continue
 
                         if _is_context_overflow_error(e):
@@ -719,6 +737,16 @@ async def process_writing_request_stream(
                 continue
 
             input_type, chunk = stream_item
+
+            if input_type == "updates" and isinstance(chunk, dict) and chunk.get("__interrupt__"):
+                pending = pending_questions(chunk["__interrupt__"])
+                if pending:
+                    _waiting_for_user = True
+                    question_text = "\n".join(item["question"] for item in pending["questions"])
+                    _assistant_text_for_memory_parts.append(question_text)
+                    tool_log.extend({"tool": "ask_user", "input": item, "output": None, "status": "waiting"}
+                                    for item in pending["questions"])
+                    yield f"data: {json.dumps(pending, ensure_ascii=False)}\n\n"
 
             if input_type == "messages":
                 if not chunk or len(chunk) == 0:
@@ -856,7 +884,7 @@ async def process_writing_request_stream(
                 yield f"data: {json.dumps({'type': 'text', 'content': pending_text}, ensure_ascii=False)}\n\n"
 
         # 警告
-        if mode == "agent" and not has_tool_result and document_range:
+        if mode == "agent" and not has_tool_result and document_range and not _waiting_for_user:
             yield f"data: {json.dumps({'type': 'status', 'content': '⚠️ 没有检测到调用工具，模型可能不支持'}, ensure_ascii=False)}\n\n"
 
         yield "data: [DONE]\n\n"
@@ -888,9 +916,7 @@ async def process_writing_request_stream(
         # A few OpenAI-compatible gateways omit usage in streaming responses.
         # Keep the dashboard useful with a conservative LangChain estimate.
         if final_token_usage["input_tokens"] <= 0:
-            final_token_usage["input_tokens"] = count_tokens_approximately(
-                messages, use_usage_metadata_scaling=False
-            )
+            final_token_usage["input_tokens"] = count_tokens_approximately(messages, use_usage_metadata_scaling=False)
         if final_token_usage["output_tokens"] <= 0 and assistant_content:
             final_token_usage["output_tokens"] = count_tokens_approximately(
                 [AIMessage(content=assistant_content)], use_usage_metadata_scaling=False

@@ -49,6 +49,13 @@
       </div>
     </div>
 
+    <div v-if="connectionFeedback" class="connection-feedback"
+      :class="{ 'connection-feedback-error': connectionFeedback.error }"
+      :role="connectionFeedback.error ? 'alert' : 'status'">
+      <span>{{ connectionFeedback.message }}</span>
+      <button type="button" :aria-label="$t('common.close')" @click="connectionFeedback = null">×</button>
+    </div>
+
     <!-- 提供商列表 -->
     <div class="providers-list">
       <!-- 提供商卡片 -->
@@ -76,16 +83,14 @@
             </span>
           </div>
           <div class="provider-actions">
-            <button class="action-btn delete" :title="$t('common.delete')" @click.stop="removeProvider(pIndex)">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-              >
-                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
-                <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
-              </svg>
+            <button
+              type="button"
+              class="action-btn delete"
+              :title="$t('common.delete')"
+              :aria-label="$t('common.delete')"
+              @click.stop="removeProvider(pIndex)"
+            >
+              <img :src="iconDelete" class="action-icon" alt="" />
             </button>
           </div>
         </div>
@@ -252,15 +257,34 @@
                     <input v-model="model.enabled" type="checkbox" @change="emitChange" />
                     <span class="slider"></span>
                   </label>
-                  <button class="btn-remove-model" :title="$t('common.remove')" @click="removeModelFromProvider(pIndex, model.id)">
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 16 16"
-                      fill="currentColor"
-                    >
-                      <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z" />
-                    </svg>
+                  <button
+                    type="button"
+                    class="btn-model-action"
+                    :title="isTestingModel(pIndex, model.id) ? $t('common.testing') : $t('model.connect')"
+                    :aria-label="isTestingModel(pIndex, model.id) ? $t('common.testing') : $t('model.connect')"
+                    :aria-busy="isTestingModel(pIndex, model.id)"
+                    :disabled="testingConnection !== null"
+                    @click="testConnection(pIndex, model)"
+                  >
+                    <span v-if="isTestingModel(pIndex, model.id)" class="connection-spinner" aria-hidden="true"></span>
+                    <img v-else :src="iconConnect" class="action-icon" alt="" />
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-model-action"
+                    :title="$t('settings.modelTitle')"
+                    :aria-label="$t('settings.modelTitle')"
+                  >
+                    <img :src="iconSetting" class="action-icon" alt="" />
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-model-action btn-remove-model"
+                    :title="$t('common.delete')"
+                    :aria-label="$t('common.delete')"
+                    @click="removeModelFromProvider(pIndex, model.id)"
+                  >
+                    <img :src="iconDelete" class="action-icon" alt="" />
                   </button>
                 </div>
               </div>
@@ -306,6 +330,9 @@
 import { ref, watch, computed } from 'vue';
 import api from '../js/api.js';
 import { t } from '../../i18n/index.js';
+import iconConnect from '../../assets/icons/connect.svg';
+import iconSetting from '../../assets/icons/setting-nav.svg';
+import iconDelete from '../../assets/icons/delete.svg';
 
 export default {
   name: 'ModelSetting',
@@ -317,6 +344,12 @@ export default {
   },
   emits: ['update:providers'],
   setup(props, { emit }) {
+    const testingConnection = ref(null);
+    const connectionFeedback = ref(null);
+    const isTestingModel = (providerIndex, modelId) => (
+      testingConnection.value?.providerIndex === providerIndex
+      && testingConnection.value?.modelId === modelId
+    );
     const localProviders = ref(props.providers.map(p => ({
       ...p,
       apiType: p.apiType || 'openai',
@@ -419,6 +452,37 @@ export default {
       }
     };
 
+    const testConnection = async (providerIndex, model) => {
+      if (testingConnection.value !== null) return;
+      connectionFeedback.value = null;
+      const provider = localProviders.value[providerIndex];
+      if (!provider?.apiKey?.trim() || !provider?.baseUrl?.trim()) {
+        connectionFeedback.value = { error: true, message: t('model.credentialsRequired') };
+        return;
+      }
+      const modelName = model.name || model.id;
+      testingConnection.value = { providerIndex, modelId: model.id };
+      try {
+        const result = await api.testModelConnection({
+          baseUrl: provider.baseUrl.trim(),
+          apiKey: provider.apiKey.trim(),
+          apiType: provider.apiType || 'openai',
+          model: model.id
+        });
+        connectionFeedback.value = {
+          error: false,
+          message: t('model.connectionSuccess', { model: modelName, latency: result.latency_ms })
+        };
+      } catch (error) {
+        connectionFeedback.value = {
+          error: true,
+          message: t('model.connectionFailed', { model: modelName, error: error.message || t('model.checkConfig') })
+        };
+      } finally {
+        testingConnection.value = null;
+      }
+    };
+
     const isModelAdded = (provider, modelId) => {
       return provider.models && provider.models.some(m => m.id === modelId);
     };
@@ -466,6 +530,13 @@ export default {
     };
 
     return {
+      iconConnect,
+      iconSetting,
+      iconDelete,
+      testingConnection,
+      connectionFeedback,
+      isTestingModel,
+      testConnection,
       localProviders,
       enabledModelsCount,
       emitChange,
@@ -655,6 +726,18 @@ export default {
   background: #fee2e2;
   color: #dc2626;
   border-color: #fecaca;
+}
+
+.connection-feedback { display: flex; align-items: flex-start; gap: 12px; padding: 12px; margin-bottom: 16px; border: 1px solid #b7dfc6; border-radius: 8px; background: #effaf3; color: #24633b; font-size: 13px; overflow-wrap: anywhere; }
+.connection-feedback span { flex: 1; min-width: 0; white-space: pre-wrap; }
+.connection-feedback button { border: 0; background: transparent; color: inherit; font-size: 18px; cursor: pointer; }
+.connection-feedback-error { border-color: #f0b6b6; background: #fff3f3; color: #a12626; }
+
+.action-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 /* 提供商内容区 */
@@ -872,6 +955,8 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .model-name {
@@ -889,6 +974,8 @@ export default {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
+  margin-left: 12px;
 }
 
 .btn-add-model {
@@ -916,18 +1003,47 @@ export default {
   border-radius: 10px;
 }
 
-.btn-remove-model {
+.btn-model-action {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   background: transparent;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   color: #999;
   transition: all 0.2s;
+}
+
+.btn-model-action:hover:not(:disabled) {
+  background: #f0f2ff;
+}
+
+.btn-model-action:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.connection-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #dfe3fb;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: connection-spin 0.8s linear infinite;
+}
+
+@keyframes connection-spin {
+  to { transform: rotate(360deg); }
+}
+
+.btn-model-action:focus-visible,
+.action-btn:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
 }
 
 .btn-remove-model:hover {

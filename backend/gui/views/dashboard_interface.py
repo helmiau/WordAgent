@@ -13,14 +13,12 @@ from qfluentwidgets import BodyLabel, CaptionLabel, CardWidget, SegmentedWidget,
 
 
 SERIES = (
-    ("inputTokens", "输入 Token", QColor("#3b82f6")),
-    ("outputTokens", "输出 Token", QColor("#22c55e")),
-    ("cachedTokens", "缓存命中 Token", QColor("#a855f7")),
+    ("inputTokens", "输入（未命中缓存）", QColor("#3b82f6")),
+    ("outputTokens", "输出", QColor("#22c55e")),
+    ("cachedTokens", "输入（命中缓存）", QColor("#a855f7")),
 )
 
-METRIC_CARDS = SERIES + (
-    ("cacheHitRate", "缓存命中率", QColor("#f59e0b")),
-)
+METRIC_CARDS = SERIES + (("cacheHitRate", "缓存命中率", QColor("#f59e0b")),)
 
 
 class _UsageLoadSignals(QObject):
@@ -230,9 +228,7 @@ class DashboardInterface(QWidget):
             db_path = get_data_dir() / "wence_ai.db"
             candidates = (db_path, db_path.with_name(f"{db_path.name}-wal"))
             return tuple(
-                (path.exists(), path.stat().st_mtime_ns, path.stat().st_size)
-                if path.exists()
-                else (False, 0, 0)
+                (path.exists(), path.stat().st_mtime_ns, path.stat().st_size) if path.exists() else (False, 0, 0)
                 for path in candidates
             )
         except OSError:
@@ -308,15 +304,13 @@ class DashboardInterface(QWidget):
         now = datetime.now()
         if self._period == "today":
             timestamps = [
-                now.replace(hour=hour, minute=0, second=0, microsecond=0).isoformat()
-                for hour in range(now.hour + 1)
+                now.replace(hour=hour, minute=0, second=0, microsecond=0).isoformat() for hour in range(now.hour + 1)
             ]
         else:
             first_day = now.date() - timedelta(days=6)
             timestamps = [(first_day + timedelta(days=offset)).isoformat() for offset in range(7)]
         points = [
-            {"timestamp": timestamp, "inputTokens": 0, "outputTokens": 0, "cachedTokens": 0}
-            for timestamp in timestamps
+            {"timestamp": timestamp, "inputTokens": 0, "outputTokens": 0, "cachedTokens": 0} for timestamp in timestamps
         ]
         return {
             "range": self._period,
@@ -330,7 +324,8 @@ class DashboardInterface(QWidget):
             if key == "cacheHitRate":
                 input_tokens = max(0, int(totals.get("inputTokens", 0) or 0))
                 cached_tokens = max(0, int(totals.get("cachedTokens", 0) or 0))
-                hit_rate = min(100.0, cached_tokens / input_tokens * 100) if input_tokens else 0.0
+                total_prompt_tokens = input_tokens + cached_tokens
+                hit_rate = min(100.0, cached_tokens / total_prompt_tokens * 100) if total_prompt_tokens else 0.0
                 card.value.setText(f"{hit_rate:.1f}%")
             else:
                 card.value.setText(f"{int(totals.get(key, 0) or 0):,}")
@@ -381,10 +376,10 @@ class DashboardInterface(QWidget):
         self._chart.addAxis(axis_y, Qt.AlignLeft)
 
         for key, title, color in SERIES:
-            # A straight line series never overshoots zero-valued source nodes.
             series = QLineSeries()
             for index, point in enumerate(self._points):
-                series.append(index, int(point.get(key, 0) or 0) / 1000)
+                series.append(index, max(0.0, int(point.get(key, 0) or 0) / 1000))
+            series.setPointsVisible(len(self._points) == 1)
             series.setName(title)
             series.setPen(QPen(color, 2.4))
             self._chart.addSeries(series)
@@ -420,9 +415,9 @@ class DashboardInterface(QWidget):
             label = raw_time
         text = (
             f"<b>{label}</b><br>"
-            f"<span style='color:#3b82f6'>● 输入：</span>{int(item.get('inputTokens', 0)):,}<br>"
+            f"<span style='color:#3b82f6'>● 输入（未命中缓存）：</span>{int(item.get('inputTokens', 0)):,}<br>"
             f"<span style='color:#22c55e'>● 输出：</span>{int(item.get('outputTokens', 0)):,}<br>"
-            f"<span style='color:#a855f7'>● 缓存命中：</span>{int(item.get('cachedTokens', 0)):,}"
+            f"<span style='color:#a855f7'>● 输入（命中缓存）：</span>{int(item.get('cachedTokens', 0)):,}"
         )
         self._detail_label.setText(text)
         self._detail_label.adjustSize()

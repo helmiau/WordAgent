@@ -28,6 +28,24 @@ function GetRouterHash() {
   return '/#';
 }
 
+export function showNativeMessage(message, title) {
+  try {
+    const assistant = window.Application?.Assistant;
+    if (assistant?.DoAlert) {
+      // Some WPS hosts expose DoAlert but return 0/undefined without opening
+      // a dialog. Only a valid OK/close result means the message was shown.
+      const result = assistant.DoAlert(title, message, 0, 0, 0, -1, true);
+      if (result === 1 || result === 2) {
+        return;
+      }
+    }
+  } catch (error) {
+    console.warn('[WPS] Native no-icon dialog unavailable:', error);
+  }
+  // WPS intercepts window.alert and displays its supported native dialog.
+  window.alert(message);
+}
+
 export default {
   WPS_Enum,
   GetUrlPath,

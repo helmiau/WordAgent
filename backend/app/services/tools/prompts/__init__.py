@@ -18,6 +18,7 @@ def read_tool_prompt(file_name: str) -> str:
 
 
 _TOOL_DESCRIPTION_FILES: dict[str, str] = {
+    "ask_user": "tool-description-ask-user.md",
     "read_document": "tool-description-read-document.md",
     "generate_document": "tool-description-generate-document.md",
     "delete_document": "tool-description-delete-document.md",

@@ -7,6 +7,7 @@
 - 回调队列、Pydantic schemas 和 MCP 加载器由单智能体直接复用。
 """
 
+from .ask_user import build_ask_user
 from .callback import (
     _current_chat_id,
     _current_model_name,
@@ -63,6 +64,8 @@ from .skill_tools import build_load_skill_context
 from .subagent_tools import build_run_sub_agent
 
 __all__ = [
+    # user clarification tool
+    "build_ask_user",
     # callback
     "_current_chat_id",
     "_current_model_name",

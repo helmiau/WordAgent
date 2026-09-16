@@ -5,7 +5,7 @@
 <p align="center">
   <a href="backend/pyproject.toml"><img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python" /></a>
   <a href="backend/README.md"><img src="https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi&logoColor=white" alt="FastAPI" /></a>
-  <a href="https://www.langchain.com/"><img src="https://img.shields.io/badge/LangChain-Used-1C3C3C?logo=chainlink&logoColor=white" alt="LangChain" /></a>
+  <a href="https://www.langchain.com/"><img src="https://img.shields.io/badge/LangChain-Agent-1C3C3C?logo=chainlink&logoColor=white" alt="LangChain" /></a>
   <a href="frontend/microsoft_word_plugin/package.json"><img src="https://img.shields.io/badge/Node.js-v22%2B-339933?logo=node.js&logoColor=white" alt="Node.js" /></a>
   <a href="https://github.com/visresearch/WordAgent/releases"><img src="https://img.shields.io/github/v/release/visresearch/WordAgent?include_prereleases" alt="Version" /></a>
   <a href="https://github.com/visresearch/WordAgent/releases"><img src="https://img.shields.io/github/downloads/visresearch/WordAgent/total?logo=github&label=Downloads" alt="Release Downloads" /></a>

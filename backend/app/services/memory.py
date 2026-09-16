@@ -286,7 +286,7 @@ def read_long_term_memory() -> str:
 
 
 def build_long_term_memory_prompt() -> str:
-    """将长期记忆格式化为系统提示词的一部分"""
+    """将长期记忆格式化为当前用户消息中的参考上下文。"""
     if not is_long_term_memory_enabled():
         return ""
 

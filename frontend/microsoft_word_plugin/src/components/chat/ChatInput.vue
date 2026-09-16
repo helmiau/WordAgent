@@ -74,6 +74,7 @@
           ref="chatInput"
           v-model="inputText"
           :placeholder="inputPlaceholder"
+          :disabled="!!pendingQuestion"
           class="chat-input"
           rows="1"
           @keydown.enter.exact.prevent="sendMessage"
@@ -188,7 +189,7 @@
               <span class="tooltip">{{ $t('chat.addSelection') }}</span>
             </div>
             <div class="btn-wrapper">
-              <button v-if="!isLoading" class="send-btn" :disabled="!inputText.trim()" @click="sendMessage">
+              <button v-if="!isLoading" class="send-btn" :disabled="!inputText.trim() || !!pendingQuestion" @click="sendMessage">
                 <img :src="sendIcon" :alt="$t('chat.send')" class="toolbar-icon" />
               </button>
               <button v-else class="stop-btn" @click="$emit('stop')">
@@ -217,6 +218,7 @@ import { t } from '../../i18n/index.js';
 export default {
   name: 'ChatInput',
   props: {
+    pendingQuestion: { type: Object, default: null },
     mode: { type: String, default: 'agent' },
     selectedModel: { type: String, default: '' },
     selectedModelProvider: { type: String, default: '' },
@@ -246,6 +248,7 @@ export default {
   },
   computed: {
     inputPlaceholder() {
+      if (this.pendingQuestion) return t('chat.clarificationInputHint');
       if (this.mode === 'ask') {
         return t('chat.askPlaceholder');
       }
@@ -391,7 +394,7 @@ export default {
       }
     },
     sendMessage() {
-      if (!this.inputText.trim() || this.isLoading) return;
+      if (!this.inputText.trim() || this.isLoading || this.pendingQuestion) return;
       this.$emit('send', this.inputText.trim());
       this.inputText = '';
       this.$nextTick(() => this.autoResize());

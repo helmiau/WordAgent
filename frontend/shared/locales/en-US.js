@@ -43,6 +43,9 @@ export default {
     builtinDeleteDisabled: 'Built-in skills cannot be deleted'
   },
   model: {
+    connect: 'Test connection',
+    connectionSuccess: 'Connection successful\nModel: {model}\nLatency: {latency} ms',
+    connectionFailed: 'Connection failed\nModel: {model}\nReason: {error}',
     title: 'AI provider configuration', subtitle: 'Manage AI providers and models', configured: 'Configured providers',
     availableCount: '{count} available models', addProvider: 'Add provider', newProvider: 'New provider', modelCount: '{count} models',
     name: 'Name', namePlaceholder: 'For example: openai', apiType: 'API type', openaiCompatible: 'OpenAI compatible',
@@ -102,6 +105,9 @@ export default {
     deleteBody: 'Delete this conversation? This action cannot be undone.'
   },
   chat: {
+    clarificationTitle: 'A little more information', clarificationHint: 'Choose an answer or enter your own to continue.',
+    clarificationCustom: 'Write your own answer', clarificationPlaceholder: 'Enter your preferences or requirements…',
+    clarificationContinue: 'Submit and continue', clarificationSubmitting: 'Continuing…', clarificationInputHint: 'Please answer the question above first',
     attachment: 'Attachment', removeFile: 'Remove file', chars: '{count} chars', clearSelection: 'Clear selection',
     allowThinking: 'Thinking on', disableThinking: 'Thinking off', thinkingToggle: 'Enable or disable deep thinking',
     addFile: 'Add files', addSelection: 'Add selection', send: 'Send', stop: 'Stop',

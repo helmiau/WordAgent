@@ -54,6 +54,7 @@ async def get_db():
 def _initialize_schema(connection) -> None:
     """创建当前表结构，并为旧业务会话补充对外 UUID。"""
     from sqlalchemy import inspect as sa_inspect
+
     # Register all ORM tables even when database initialization runs before a
     # route or service happens to import the model module.
     from app.models import db_models as _db_models  # noqa: F401

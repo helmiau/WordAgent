@@ -84,6 +84,9 @@ def try_init_langsmith() -> bool:
                 logger.info(f"[LangSmith] 加载 .env: {resolved}")
                 load_dotenv(resolved, override=False)
 
+        if os.environ.get("LANGSMITH_TRACING", "").lower() == "false":
+            return False
+
         api_key = os.environ.get("LANGSMITH_API_KEY") or ""
         endpoint = os.environ.get("LANGSMITH_ENDPOINT") or "https://api.smith.langchain.com"
         project = os.environ.get("LANGSMITH_PROJECT") or "WordAgent"

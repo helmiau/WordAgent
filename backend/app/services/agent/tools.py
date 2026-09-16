@@ -21,6 +21,7 @@ from app.services.tools import (
     _pending_loops,
     _pending_tool_requests,
     _stop_requested_sessions,
+    build_ask_user,
     build_create_document,
     build_delete_document,
     build_edit_document,
@@ -54,6 +55,7 @@ from app.services.tools.prompts import get_tool_description
 # 用本模式的 prompt 装配出工具实例
 # ---------------------------------------------------------------------------
 
+ask_user = build_ask_user(get_tool_description("ask_user"))
 read_document = build_read_document(get_tool_description("read_document"))
 generate_document = build_generate_document(get_tool_description("generate_document"))
 search_document = build_search_document(get_tool_description("search_document"))
@@ -76,6 +78,7 @@ edit_file = build_edit_file(get_tool_description("edit_file"))
 
 # 基础工具集（不含 MCP 动态工具）
 AGENT_BASE_TOOLS = [
+    ask_user,
     load_skill_context,
     read_document,
     search_document,
@@ -91,6 +94,7 @@ AGENT_BASE_TOOLS = [
     # run_sub_agent,  # 单智能体模式暂时停用。
 ]
 ASK_BASE_TOOLS = [
+    ask_user,
     load_skill_context,
     read_document,
     search_document,
@@ -115,6 +119,7 @@ TOOL_MAP = {t.name: t for t in BASE_TOOLS}
 
 
 __all__ = [
+    "ask_user",
     # tools
     "delete_document",
     "edit_document",

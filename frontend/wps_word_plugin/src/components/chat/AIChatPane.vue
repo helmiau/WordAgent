@@ -7,6 +7,8 @@
       <ChatMessages
         ref="chatMessages"
         :messages="messages"
+        :question-busy="refreshingQuestion"
+        @answer-question="answerQuestion"
         :is-loading="isLoading"
         :has-history="hasHistory"
         :history-loaded="historyLoaded"
@@ -25,6 +27,7 @@
         :models-loading="modelsLoading"
         :is-loading="isLoading"
         :selections="selections"
+        :pending-question="pendingQuestions[currentSessionId] || null"
         :uploaded-files="uploadedFiles"
         :pending-document="pendingDocument"
         :pending-edits="pendingEdits"
@@ -69,6 +72,7 @@ import {
   settleAllDocumentRevisions
 } from '../js/revisionPreview.js';
 import api, { getDocumentById } from '../js/api.js';
+import { captureDeleteSnapshot, rollbackDeletedParagraphs } from '../js/documentRollback.js';
 import ChatMessages from './ChatMessages.vue';
 import ChatInput from './ChatInput.vue';
 import SessionPane from './SessionPane.vue';
@@ -97,6 +101,10 @@ export default {
       currentStreamCtrl: null,
       currentSessionId: null,
       currentSessionTitle: null,
+      pendingQuestions: {},
+      refreshingQuestion: false,
+      questionVersions: {},
+      transcriptVersion: 0,
       pendingDocument: null,
       pendingDocumentMsg: null,
       deleteRevisions: [],  // 已立即执行、等待统一接受/拒绝的原生删除修订
@@ -169,6 +177,93 @@ export default {
     }
   },
   methods: {
+    async refreshPendingQuestion(sessionId, fallback = null) {
+      const version = this.questionVersions[sessionId] || 0;
+      this.refreshingQuestion = true;
+      try {
+        const result = await api.getSession(sessionId);
+        if (version !== (this.questionVersions[sessionId] || 0)) return;
+        if (result.success && result.data) {
+          this.pendingQuestions[sessionId] = result.data.pendingQuestion || null;
+        } else if (fallback && !this.pendingQuestions[sessionId]) {
+          this.pendingQuestions[sessionId] = fallback;
+        }
+      } catch (error) {
+        console.warn('[ask_user] 无法刷新待回答问题:', error);
+        if (version === (this.questionVersions[sessionId] || 0) && fallback && !this.pendingQuestions[sessionId]) {
+          this.pendingQuestions[sessionId] = fallback;
+        }
+      } finally {
+        this.syncQuestionRecords(sessionId);
+        this.refreshingQuestion = false;
+      }
+    },
+
+    // Question cards live in the transcript, including after resume and history reload.
+    syncQuestionRecords(sessionId) {
+      const messages = sessionId === this.currentSessionId ? this.messages : this._streamingCache[sessionId];
+      if (!messages) return;
+      const pending = this.pendingQuestions[sessionId];
+      const answers = new Map();
+      for (const message of messages) {
+        for (const call of message.toolJson?.calls || []) {
+          if (call.tool === 'ask_user' && typeof call.output === 'string' && call.input?.id) {
+            answers.set(call.input.id, call.output);
+          }
+        }
+      }
+      let foundPending = false;
+      for (const message of messages) {
+        for (const part of message.contentParts || []) {
+          if (part.type !== 'ask_user') continue;
+          part.pending = !!pending && part.request.questions.every(question =>
+            pending.questions.some(item => item.id === question.id));
+          if (part.pending) {
+            foundPending = true;
+            part.response = null;
+          } else if (part.request.questions.every(question => answers.has(question.id))) {
+            part.response = { answers: part.request.questions.map(question => ({
+              id: question.id, answer: answers.get(question.id)
+            })) };
+          }
+        }
+      }
+      // Older saved turns may contain only the question text.
+      if (pending && !foundPending) {
+        const last = messages[messages.length - 1];
+        const message = last?.role === 'assistant' ? last : { role: 'assistant', content: '', contentParts: [] };
+        if (message !== last) messages.push(message);
+        message.contentParts ||= message.content ? [{ type: 'text', content: message.content }] : [];
+        message.contentParts.push({ type: 'ask_user', request: pending, pending: true });
+      }
+    },
+
+    answerQuestion(response) {
+      if (this.isLoading || this.refreshingQuestion) return;
+      const pending = this.pendingQuestions[this.currentSessionId];
+      if (!pending) return;
+      if (!Array.isArray(response?.answers) || response.answers.length !== pending.questions.length) return;
+      if (!pending.questions.every(question => response.answers.some(item =>
+        item.id === question.id && typeof item.answer === 'string' && item.answer.trim() && item.answer.length <= 4000
+      ))) return;
+      const text = pending.questions.map(question => {
+        const answer = response.answers.find(item => item.id === question.id)?.answer || '';
+        return `${question.question}\n${answer}`;
+      }).join('\n\n');
+      for (const message of this.messages) {
+        for (const part of message.contentParts || []) {
+          if (part.type === 'ask_user' && part.pending) {
+            part.response = { answers: response.answers.map(item => ({ ...item })) };
+            part.pending = false;
+          }
+        }
+      }
+      this.pendingQuestions[this.currentSessionId] = null;
+      this.questionVersions[this.currentSessionId] = (this.questionVersions[this.currentSessionId] || 0) + 1;
+      this.messages.push({ role: 'user', content: text });
+      this._sendStreamRequest(text, null, [], null, response, pending);
+    },
+
     _sanitizeContentParts(parts) {
       if (!Array.isArray(parts)) {
         return [];
@@ -560,6 +655,8 @@ export default {
               this.mode = result.data.lastUsedMode;
             }
             this._restoreTokenStats(result.data.tokenStats, this.currentSessionId);
+            this.pendingQuestions[this.currentSessionId] = result.data.pendingQuestion || null;
+            this.syncQuestionRecords(this.currentSessionId);
 
             this.hasHistory = this.messages.length > 0;
             this.historyLoaded = true;
@@ -600,7 +697,7 @@ export default {
       }
 
       // 缓存正在流式生成的会话消息
-      if (this.isLoading && this._streamingSessionId === this.currentSessionId) {
+      if ((this.isLoading && this._streamingSessionId === this.currentSessionId) || this.pendingQuestions[this.currentSessionId]) {
         this._streamingCache[this.currentSessionId] = this.messages;
         this._sessionTokenStats[this.currentSessionId] = { ...this.tokenStats };
       }
@@ -667,6 +764,9 @@ export default {
         return;
       }
 
+      if (this.isLoading && this._streamingSessionId === targetSessionId) return;
+      const transcriptVersion = this.transcriptVersion;
+
       console.log('[加载历史] 开始加载, sessionId:', targetSessionId);
 
       this.historyLoading = true;
@@ -675,7 +775,7 @@ export default {
         console.log('[加载历史] API 返回:', result);
 
         // 检查当前会话是否已切换，避免竞态条件
-        if (this.currentSessionId !== targetSessionId) {
+        if (this.currentSessionId !== targetSessionId || transcriptVersion !== this.transcriptVersion) {
           console.log('[加载历史] 会话已切换，忽略过时响应');
           return;
         }
@@ -709,6 +809,8 @@ export default {
             this.mode = result.data.lastUsedMode;
           }
           this._restoreTokenStats(result.data.tokenStats, targetSessionId);
+          this.pendingQuestions[targetSessionId] = result.data.pendingQuestion || null;
+          this.syncQuestionRecords(targetSessionId);
 
           // 更新会话标题
           if (result.data.session) {
@@ -734,8 +836,9 @@ export default {
         }
       } catch (e) {
         console.error('[加载历史] 失败:', e);
+      } finally {
+        this.historyLoading = false;
       }
-      this.historyLoading = false;
     },
 
     _restoreTokenStats(stats, sessionId = null) {
@@ -1116,6 +1219,7 @@ export default {
      * 处理用户发送消息（由 ChatInput 触发）
      */
     async handleSend(userMessage) {
+      if (this.isLoading || this.pendingQuestions[this.currentSessionId]) return;
       // 确保有会话
       const sessionId = await this.ensureSession();
       if (!sessionId) {
@@ -1187,7 +1291,8 @@ export default {
     /**
      * 发送流式请求的公共方法
      */
-    _sendStreamRequest(userMessage, documentRange, files = [], selectionContext = null) {
+    _sendStreamRequest(userMessage, documentRange, files = [], selectionContext = null, userResponse = null, pendingQuestion = null) {
+      this.transcriptVersion += 1;
       this.isLoading = true;
       const streamSessionId = this.currentSessionId;
       this._streamingSessionId = streamSessionId;
@@ -1217,6 +1322,7 @@ export default {
         files: files,
         enableThinking: this.enableThinking,
         sessionId: streamSessionId,
+        userResponse,
 
         onMessage: (data) => {
           this._handleStreamMessage(data, aiMsg, streamSessionId);
@@ -1225,36 +1331,41 @@ export default {
         onError: (error) => {
           console.error('请求失败:', error);
           const errMsg = String(error?.message || '');
+          let failureMessage;
           if (errMsg.includes('⛔ 网络超时连接，自动断开')) {
-            aiMsg.content = t('chat.networkTimeout');
+            failureMessage = t('chat.networkTimeout');
           } else if (error?.reconnecting) {
-            aiMsg.content = t('chat.networkInterruptedReconnecting');
+            failureMessage = t('chat.networkInterruptedReconnecting');
           } else {
-            aiMsg.content = t('chat.networkError', { error: errMsg });
+            failureMessage = t('chat.networkError', { error: errMsg });
           }
+          aiMsg.contentParts.push({ type: 'status', content: failureMessage });
+          if (!aiMsg.content) aiMsg.content = failureMessage;
           this.isLoading = false;
+          if (userResponse) this.refreshPendingQuestion(streamSessionId, pendingQuestion);
           this._streamingSessionId = null;
           this.currentStreamCtrl = null;
           if (aiMsg.thinking) {
             aiMsg.thinkingDone = true;
           }
-          delete this._streamingCache[streamSessionId];
+          if (!this.pendingQuestions[streamSessionId] && !pendingQuestion) delete this._streamingCache[streamSessionId];
           this.scrollToBottom();
         },
 
         onComplete: () => {
           this.isLoading = false;
+          if (userResponse && !this.pendingQuestions[streamSessionId]) this.refreshPendingQuestion(streamSessionId);
           this._streamingSessionId = null;
 
           if (aiMsg.thinking) {
             aiMsg.thinkingDone = true;
           }
 
-          this.scrollToBottom();
+          if (!this.pendingQuestions[streamSessionId]) this.scrollToBottom();
           window.dispatchEvent(new CustomEvent('session-created'));
 
           // 清理缓存
-          delete this._streamingCache[streamSessionId];
+          if (!this.pendingQuestions[streamSessionId]) delete this._streamingCache[streamSessionId];
         }
       });
 
@@ -1266,6 +1377,22 @@ export default {
      */
     _handleStreamMessage(data, aiMsg, streamSessionId) {
       const msg = aiMsg;
+
+      if (data.type === 'ask_user') {
+        const container = this.currentSessionId === streamSessionId
+          ? this.$refs.chatMessages?.$refs.messagesContainer : null;
+        const scrollTop = container?.scrollTop;
+        this.questionVersions[streamSessionId] = (this.questionVersions[streamSessionId] || 0) + 1;
+        this.pendingQuestions[streamSessionId] = data;
+        if (this.currentSessionId === streamSessionId) this._streamingCache[streamSessionId] = this.messages;
+        const text = data.questions.map(item => item.question).join('\n');
+        // Keep all earlier text, tool records, and thinking on the same message.
+        msg.content += `${msg.content ? '\n\n' : ''}${text}`;
+        msg.contentParts.push({ type: 'ask_user', request: data, pending: true });
+        if (msg.thinking) msg.thinkingDone = true;
+        if (container) this.$nextTick(() => { container.scrollTop = scrollTop; });
+        return;
+      }
 
       // 后端 keepalive ping 仅用于保活，不影响任何 UI 状态
       if (data.type === 'ping') {
@@ -1767,7 +1894,7 @@ export default {
     },
 
     _resolveTargetDoc(docId = 0) {
-      return getDocumentById(this._toIntOrDefault(docId, 0)) || window.Application.ActiveDocument;
+      return getDocumentById(this._toIntOrDefault(docId, 0));
     },
 
     _applyImmediateDelete(payload) {
@@ -1845,7 +1972,9 @@ export default {
 
       let trackedEdit = null;
       let deleteResult = null;
+      let deleteSnapshot = null;
       try {
+        deleteSnapshot = captureDeleteSnapshot(doc, matchedParas);
         trackedEdit = beginTrackedEdit(doc);
         deleteResult = deleteDocxPara([...matchedIds], doc);
         if (!deleteResult || Number(deleteResult.deletedCount) === 0) {
@@ -1864,13 +1993,14 @@ export default {
 
         const revisionBatch = finishTrackedEdit(trackedEdit, targetRange, 'delete');
         if (!revisionBatch.batchId) {
-          try {
-            window.Application.Undo(Number(deleteResult.deletedCount) || 1);
-          } catch (undoError) {
-            console.error('[AIChatPane] 未检测到删除修订且撤销失败:', undoError);
-          }
-          const error = 'WPS 未创建原生删除修订，已撤销本次删除';
-          sendResult({ success: false, deletedCount: 0, missingParaIDs, replacementInsertParaID, error });
+          const recovery = rollbackDeletedParagraphs(doc, deleteSnapshot,
+            Number(deleteResult.deletedCount) || 1, window.Application);
+          api.wsManager.clearDocumentCache();
+          const error = recovery.rollbackVerified
+            ? 'WPS 未创建原生删除修订，已核实原段落及内容恢复；请重新读取文档'
+            : 'WPS 未创建原生删除修订，撤销后的恢复状态未确认；请重新读取目标区域，禁止直接重试';
+          sendResult({ success: false, deletedCount: recovery.rollbackVerified ? 0 : null,
+            missingParaIDs, replacementInsertParaID, ...recovery, error });
           return false;
         }
 
@@ -1903,20 +2033,18 @@ export default {
         return fullyDeleted;
       } catch (error) {
         abortTrackedEdit(trackedEdit);
-        if (deleteResult?.success) {
-          try {
-            window.Application.Undo(Number(deleteResult.deletedCount) || 1);
-          } catch (undoError) {
-            console.error('[AIChatPane] 删除异常后撤销失败:', undoError);
-          }
-        }
+        const recovery = deleteSnapshot && Number(deleteResult?.deletedCount) > 0
+          ? rollbackDeletedParagraphs(doc, deleteSnapshot, Number(deleteResult.deletedCount), window.Application)
+          : { rollbackVerified: false, requiresRead: true };
+        api.wsManager.clearDocumentCache();
         const message = error?.message || String(error);
         console.warn('[AIChatPane] 创建 WPS 原生删除修订失败:', message);
         sendResult({
           success: false,
-          deletedCount: 0,
+          deletedCount: recovery.rollbackVerified ? 0 : null,
           missingParaIDs,
           replacementInsertParaID,
+          ...recovery,
           error: message
         });
         return false;

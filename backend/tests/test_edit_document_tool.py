@@ -45,3 +45,11 @@ class EditDocumentToolTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_unknown_style_fails_before_document_mutation():
+    with patch("app.services.tools.document_tools.get_stream_writer") as writer:
+        result = _edit_document_impl(101, [Run(text="新内容", rStyle="rS_missing")], 9)
+    assert result["success"] is False
+    assert result["errorCode"] == "unresolved_character_style"
+    writer.assert_not_called()

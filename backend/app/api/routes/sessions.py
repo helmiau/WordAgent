@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
 from app.core.logging import get_logger
-from app.services.memory import delete_thread, get_thread_token_stats
+from app.services.memory import delete_thread, get_thread_token_stats, build_thread_config
+from app.services.human_input import load_pending_questions
 from app.services.middleware import MAX_CONTEXT_TOKENS
 from app.services.session_service import SessionService
 
@@ -84,6 +85,7 @@ class SessionDetailResponse(BaseModel):
     lastUsedProvider: str | None = None
     lastUsedMode: str | None = None
     tokenStats: dict | None = None
+    pendingQuestion: dict | None = None
     error: str | None = None
 
 
@@ -114,6 +116,11 @@ async def _get_session_token_stats(request: Request, session_id: str) -> dict:
     except Exception:
         logger.exception("读取会话上下文 token 失败: session_id=%s", session_id)
         return {"current": 0, "max": MAX_CONTEXT_TOKENS, "percentage": 0.0}
+
+
+async def _get_pending_question(request: Request, session_id: str) -> dict | None:
+    _, pending = await load_pending_questions(request.app.state.checkpointer, build_thread_config(session_id))
+    return pending
 
 
 # ============== 会话 CRUD 路由 ==============
@@ -203,6 +210,7 @@ async def get_latest_session(
             lastUsedProvider=last_settings.get("provider"),
             lastUsedMode=last_settings.get("mode"),
             tokenStats=await _get_session_token_stats(request, session.id),
+            pendingQuestion=await _get_pending_question(request, session.id),
         )
     except Exception as e:
         return SessionDetailResponse(success=False, error=str(e))
@@ -233,6 +241,7 @@ async def get_session(
             lastUsedProvider=last_settings.get("provider"),
             lastUsedMode=last_settings.get("mode"),
             tokenStats=await _get_session_token_stats(request, session_id),
+            pendingQuestion=await _get_pending_question(request, session_id),
         )
     except Exception as e:
         return SessionDetailResponse(success=False, error=str(e))

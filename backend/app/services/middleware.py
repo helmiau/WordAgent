@@ -21,10 +21,13 @@ langchain 中间件
 
 from __future__ import annotations
 
+import json
+
 from typing import Any
 
 from langchain.agents.middleware import (
     AgentMiddleware,
+    HumanInTheLoopMiddleware,
     ModelCallLimitMiddleware,
     ModelRequest,
     ModelResponse,
@@ -40,6 +43,7 @@ from langgraph.graph.message import REMOVE_ALL_MESSAGES
 from langgraph.types import Command
 
 from app.core.logging import get_logger
+from app.services.document_edit_policy import MUTATIONS, edit_style_context, prepare_document_call
 from app.services.agent.prompts import get_summarization_middleware_prompt
 from app.services.tools.tool_log import append_tool_call
 from app.services.utils import _get_env_float, _get_env_int, normalize_tool_args
@@ -64,6 +68,7 @@ TOOL_RETRY_MAX_DELAY = _get_env_float("WORDAGENT_TOOL_RETRY_MAX_DELAY", 10.0)
 TOOL_RETRY_JITTER = True
 
 _BUILTIN_TOOL_NAMES = {
+    "ask_user",
     "create_document",
     "delete_document",
     "edit_document",
@@ -427,7 +432,16 @@ class ToolNormalizationAndLoggingMiddleware(AgentMiddleware):
             )
             normalized_request = request
         else:
-            result = handler(normalized_request)
+            styles, refusal = prepare_document_call(normalized_request.tool_call, normalized_request.state)
+            if refusal:
+                result = ToolMessage(content=json.dumps(refusal, ensure_ascii=False),
+                                     tool_call_id=request.tool_call["id"], name=request.tool_call["name"], status="error")
+            else:
+                token = edit_style_context.set(styles)
+                try:
+                    result = handler(normalized_request)
+                finally:
+                    edit_style_context.reset(token)
         _record_result(normalized_request, result, agent_name=None, repaired=False)
         return result
 
@@ -443,7 +457,16 @@ class ToolNormalizationAndLoggingMiddleware(AgentMiddleware):
             )
             normalized_request = request
         else:
-            result = await handler(normalized_request)
+            styles, refusal = prepare_document_call(normalized_request.tool_call, normalized_request.state)
+            if refusal:
+                result = ToolMessage(content=json.dumps(refusal, ensure_ascii=False),
+                                     tool_call_id=request.tool_call["id"], name=request.tool_call["name"], status="error")
+            else:
+                token = edit_style_context.set(styles)
+                try:
+                    result = await handler(normalized_request)
+                finally:
+                    edit_style_context.reset(token)
         _record_result(normalized_request, result, agent_name=None, repaired=False)
         return result
 
@@ -459,8 +482,35 @@ MODEL_CALL_LIMIT_MIDDLEWARE = ModelCallLimitMiddleware(
 
 TOOL_NORMALIZATION_AND_LOGGING_MIDDLEWARE = ToolNormalizationAndLoggingMiddleware()
 
-# max_retries excludes the first attempt, so a tool runs at most three times.
-TOOL_RETRY_MIDDLEWARE = ToolRetryMiddleware(
+class MutationSafeToolRetryMiddleware(ToolRetryMiddleware):
+    """Read tools may retry; a write exception requires inspection, never replay."""
+
+    @staticmethod
+    def _uncertain(request, exc):
+        return ToolMessage(
+            content=json.dumps({"success": None, "requiresRead": True, "retryable": False,
+                                "error": f"写操作异常，未自动重试；请读取目标区域确认实际状态：{exc}"}, ensure_ascii=False),
+            tool_call_id=request.tool_call["id"], name=request.tool_call["name"], status="error")
+
+    def wrap_tool_call(self, request, handler):
+        if request.tool_call["name"] not in MUTATIONS:
+            return super().wrap_tool_call(request, handler)
+        try:
+            return handler(request)
+        except Exception as exc:
+            return self._uncertain(request, exc)
+
+    async def awrap_tool_call(self, request, handler):
+        if request.tool_call["name"] not in MUTATIONS:
+            return await super().awrap_tool_call(request, handler)
+        try:
+            return await handler(request)
+        except Exception as exc:
+            return self._uncertain(request, exc)
+
+
+# max_retries applies only to non-mutating tools.
+TOOL_RETRY_MIDDLEWARE = MutationSafeToolRetryMiddleware(
     max_retries=TOOL_MAX_RETRIES,
     on_failure=TOOL_RETRY_ON_FAILURE,
     backoff_factor=TOOL_RETRY_BACKOFF_FACTOR,
@@ -477,6 +527,7 @@ def build_agent_middleware(*, summary_model, system_prompt: str = "", tools: lis
         TODO_LIST_MIDDLEWARE,
         MODEL_CALL_LIMIT_MIDDLEWARE,
         INVALID_TOOL_CALL_MIDDLEWARE,
+        HumanInTheLoopMiddleware(interrupt_on={"ask_user": {"allowed_decisions": ["respond"]}}),
         NotifyingSummarizationMiddleware(
             model=summary_model,
             trigger=("tokens", trigger_tokens),

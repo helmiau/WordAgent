@@ -6,12 +6,13 @@
 import asyncio
 import json
 from pathlib import Path
+from time import perf_counter
 from typing import Literal
 
 from fastapi import APIRouter
 import httpx
 from openai import AsyncOpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from app.core.config import get_user_settings_file
 from app.core.logging import get_logger
@@ -160,6 +161,28 @@ class ProviderModelsRequest(BaseModel):
     api_type: Literal["openai", "anthropic"] = "openai"
 
 
+class ProviderConnectionRequest(ProviderModelsRequest):
+    """Test a selected model with the current, possibly unsaved credentials."""
+
+    model: str
+
+    @field_validator("base_url", "api_key", "model")
+    @classmethod
+    def require_nonempty(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("不能为空")
+        return value
+
+    @field_validator("base_url")
+    @classmethod
+    def require_http_url(cls, value: str) -> str:
+        url = httpx.URL(value)
+        if url.scheme not in {"http", "https"} or not url.host:
+            raise ValueError("Base URL 必须是有效的 HTTP 或 HTTPS 地址")
+        return value
+
+
 def normalize_base_url(base_url: str) -> str:
     """
     标准化 base_url
@@ -175,6 +198,71 @@ def normalize_base_url(base_url: str) -> str:
         url = url + "/v1"
 
     return url
+
+
+@router.post("/providers/test-connection")
+async def test_provider_connection(request: ProviderConnectionRequest):
+    """Measure a short model request, without saving settings or creating a chat."""
+    from app.services.llm_client import get_proxy_url
+
+    try:
+        base_url = normalize_base_url(request.base_url)
+        body = {
+            "model": request.model,
+            "messages": [{"role": "user", "content": "Reply with only OK."}],
+            "stream": False,
+        }
+        if request.api_type == "anthropic":
+            url = f"{base_url}/messages"
+            headers = {"x-api-key": request.api_key, "anthropic-version": "2023-06-01"}
+            body["max_tokens"] = 16
+        else:
+            url = f"{base_url}/chat/completions"
+            headers = {"Authorization": f"Bearer {request.api_key}"}
+
+        # Bound the entire request, including a slow/trickling response body.
+        async with asyncio.timeout(20):
+            async with httpx.AsyncClient(timeout=20, proxy=get_proxy_url()) as client:
+                started = perf_counter()
+                response = await client.post(url, headers=headers, json=body)
+                latency_ms = max(0, round((perf_counter() - started) * 1000))
+                response.raise_for_status()
+                data = response.json()
+
+        if not isinstance(data, dict):
+            raise ValueError("服务商返回了无效的模型响应，请检查 Base URL 和 API 类型")
+        if data.get("error"):
+            error = data["error"]
+            raise ValueError(str(error.get("message", error) if isinstance(error, dict) else error))
+        if request.api_type == "anthropic":
+            valid = data.get("type") == "message" and isinstance(data.get("content"), list)
+        else:
+            choices = data.get("choices")
+            valid = (
+                isinstance(choices, list)
+                and bool(choices)
+                and isinstance(choices[0], dict)
+                and isinstance(choices[0].get("message"), dict)
+            )
+        if not valid:
+            raise ValueError("服务商返回了无效的模型响应，请检查 Base URL 和 API 类型")
+        return {"success": True, "latency_ms": latency_ms}
+    except (TimeoutError, httpx.TimeoutException):
+        return {"success": False, "error": "连接超时（20 秒），请检查网络或稍后重试"}
+    except httpx.HTTPStatusError as exc:
+        detail = exc.response.reason_phrase
+        try:
+            data = exc.response.json()
+            error = data.get("error", {}) if isinstance(data, dict) else {}
+            detail = str(error.get("message") or detail) if isinstance(error, dict) else str(error or detail)
+        except ValueError:
+            pass
+        detail = detail.replace(request.api_key, "***")[:500]
+        return {"success": False, "error": f"HTTP {exc.response.status_code}: {detail}"}
+    except httpx.RequestError:
+        return {"success": False, "error": "无法连接模型服务，请检查 Base URL、网络和代理设置"}
+    except Exception as exc:
+        return {"success": False, "error": str(exc).replace(request.api_key, "***")[:500] or "连接测试失败"}
 
 
 @router.post("/providers/models")

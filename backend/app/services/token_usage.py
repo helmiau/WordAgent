@@ -75,9 +75,7 @@ def normalize_usage_metadata(usage: dict | None) -> dict[str, int]:
     prompt_details = usage.get("prompt_tokens_details")
     prompt_details = prompt_details if isinstance(prompt_details, dict) else {}
     detail_cache_values = [
-        value
-        for key, value in details.items()
-        if key == "cache_read" or key.endswith("_cache_read")
+        value for key, value in details.items() if key == "cache_read" or key.endswith("_cache_read")
     ]
     cached_candidates = (
         *detail_cache_values,
@@ -99,9 +97,7 @@ def normalize_usage_metadata(usage: dict | None) -> dict[str, int]:
     }
 
 
-async def record_token_usage(
-    *, input_tokens: int, output_tokens: int, cached_tokens: int, **_ignored
-) -> None:
+async def record_token_usage(*, input_tokens: int, output_tokens: int, cached_tokens: int, **_ignored) -> None:
     """Atomically add one model invocation to the current hour and day."""
     values = {
         "input_tokens": _safe_int(input_tokens),
@@ -117,25 +113,29 @@ async def record_token_usage(
     try:
         async with AsyncSessionLocal() as db:
             daily = insert(TokenDaily).values(bucket_time=hour, updated_at=now, **values)
-            await db.execute(daily.on_conflict_do_update(
-                index_elements=[TokenDaily.bucket_time],
-                set_={
-                    "input_tokens": TokenDaily.input_tokens + values["input_tokens"],
-                    "output_tokens": TokenDaily.output_tokens + values["output_tokens"],
-                    "cached_tokens": TokenDaily.cached_tokens + values["cached_tokens"],
-                    "updated_at": now,
-                },
-            ))
+            await db.execute(
+                daily.on_conflict_do_update(
+                    index_elements=[TokenDaily.bucket_time],
+                    set_={
+                        "input_tokens": TokenDaily.input_tokens + values["input_tokens"],
+                        "output_tokens": TokenDaily.output_tokens + values["output_tokens"],
+                        "cached_tokens": TokenDaily.cached_tokens + values["cached_tokens"],
+                        "updated_at": now,
+                    },
+                )
+            )
             weekly = insert(TokenWeekly).values(usage_date=today, updated_at=now, **values)
-            await db.execute(weekly.on_conflict_do_update(
-                index_elements=[TokenWeekly.usage_date],
-                set_={
-                    "input_tokens": TokenWeekly.input_tokens + values["input_tokens"],
-                    "output_tokens": TokenWeekly.output_tokens + values["output_tokens"],
-                    "cached_tokens": TokenWeekly.cached_tokens + values["cached_tokens"],
-                    "updated_at": now,
-                },
-            ))
+            await db.execute(
+                weekly.on_conflict_do_update(
+                    index_elements=[TokenWeekly.usage_date],
+                    set_={
+                        "input_tokens": TokenWeekly.input_tokens + values["input_tokens"],
+                        "output_tokens": TokenWeekly.output_tokens + values["output_tokens"],
+                        "cached_tokens": TokenWeekly.cached_tokens + values["cached_tokens"],
+                        "updated_at": now,
+                    },
+                )
+            )
             midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
             await db.execute(delete(TokenDaily).where(TokenDaily.bucket_time < midnight))
             await db.execute(delete(TokenWeekly).where(TokenWeekly.usage_date < today - timedelta(days=6)))
@@ -174,31 +174,31 @@ def query_token_usage_sync(period: str) -> dict:
             database_uri = f"{db_path.resolve().as_uri()}?mode=ro"
             with sqlite3.connect(database_uri, uri=True, timeout=1) as connection:
                 table_names = {
-                    row[0] for row in connection.execute(
-                        "SELECT name FROM sqlite_master WHERE type='table'"
-                    ).fetchall()
+                    row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
                 }
                 if table in table_names:
                     rows = connection.execute(
                         f"SELECT {key_column}, input_tokens, output_tokens, cached_tokens "
-                        f"FROM {table} WHERE {key_column} >= ? ORDER BY {key_column}", (cutoff,),
+                        f"FROM {table} WHERE {key_column} >= ? ORDER BY {key_column}",
+                        (cutoff,),
                     ).fetchall()
                     for raw_key, input_tokens, output_tokens, cached_tokens in rows:
                         normalized_key = str(raw_key).replace(" ", "T")
                         point = point_map.get(normalized_key[:key_length])
                         if point is not None:
+                            # The dashboard's input metric represents tokens
+                            # that were not served from the prompt cache.
+                            total_input = _safe_int(input_tokens)
+                            cached_input = _safe_int(cached_tokens)
                             point.update(
-                                inputTokens=_safe_int(input_tokens),
+                                inputTokens=max(0, total_input - cached_input),
                                 outputTokens=_safe_int(output_tokens),
-                                cachedTokens=_safe_int(cached_tokens),
+                                cachedTokens=cached_input,
                             )
         except sqlite3.Error as exc:
             raise RuntimeError("Token 使用数据库读取失败") from exc
 
-    totals = {
-        key: sum(point[key] for point in points)
-        for key in ("inputTokens", "outputTokens", "cachedTokens")
-    }
+    totals = {key: sum(point[key] for point in points) for key in ("inputTokens", "outputTokens", "cachedTokens")}
     return {"range": period, "points": points, "totals": totals}
 
 
