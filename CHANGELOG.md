@@ -15,6 +15,7 @@
 - 修改token统计曲线面板
 
 ### Fixed
+- 更新检查支持 GitHub Release API 失败后自动回退至 gh-proxy.com，覆盖超时、HTTP 错误及无效响应
 - 对齐 backend/.env.example 与代码默认值
 - 修复 edit_document 字符样式引用未生效：按当前会话、文档的最近样式表解析 rStyle，WPS / Microsoft Word 写入前校验；保持段落 pStyle 和段落标记不变
 - 修复 WPS 删除失败时未经验证即报告已撤销的问题：核对原段落 ID、内容和全文，恢复未确认时明确要求重新读取，并清理文档缓存

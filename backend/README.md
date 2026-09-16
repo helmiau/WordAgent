@@ -132,5 +132,6 @@ LANGSMITH_PROJECT="WordAgent"
 ## 注意事项
 
 - 后端默认只监听 `127.0.0.1:3880`，供本机 Word / WPS 插件访问。
+- GUI 检查更新时先请求 GitHub Release API，失败后通过 `https://gh-proxy.com/` 转发同一 API；每个地址的请求超时为 8 秒。备用服务不可用时仍会显示“更新检查失败”，不影响后端运行。此回退仅用于版本信息，官网和安装包下载链接保持原样。
 - WPS 插件安装依赖 WPS Cloud 本地服务，通常监听 `58890` 端口；GUI 会尝试启动 `wpscloudsvr`。
 - 如果 WPS 加载项显示旧代码、空白页或旧图标，先关闭 WPS 和调试进程，再清理 WPS CEF 缓存。

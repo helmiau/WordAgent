@@ -5,7 +5,6 @@ import os
 import re
 import threading
 import webbrowser
-from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from PySide6.QtCore import Qt, QTimer, Signal
@@ -29,6 +28,31 @@ from qfluentwidgets import (
     InfoBar,
     InfoBarPosition,
 )
+
+
+def check_latest_release(api_urls: tuple[str, ...], *, release_url: str) -> dict:
+    """Try each API once; keep navigation on the application's release URL."""
+    errors = []
+    for url in api_urls:
+        try:
+            request = Request(
+                url,
+                headers={
+                    "Accept": "application/vnd.github+json",
+                    "User-Agent": "WenCeAI-VersionChecker",
+                },
+            )
+            with urlopen(request, timeout=3) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            tag = payload.get("tag_name") if isinstance(payload, dict) else None
+            if not isinstance(tag, str) or not re.search(r"\d+(?:\.\d+)*", tag):
+                raise ValueError("更新接口未返回有效版本号")
+            return {"ok": True, "latest_tag": tag.strip(), "latest_url": release_url, "error": ""}
+        except (OSError, ValueError) as exc:
+            # Includes HTTP/URL errors, timeouts, invalid JSON and invalid UTF-8.
+            errors.append(f"{url}: {exc}")
+
+    return {"ok": False, "latest_tag": "", "latest_url": release_url, "error": "; ".join(errors)}
 
 
 def _read_local_version() -> str:
@@ -85,6 +109,11 @@ class HomeInterface(QWidget):
 
     GITHUB_URL = "https://github.com/visresearch/WordAgent"
     GITHUB_RELEASE_API = "https://api.github.com/repos/visresearch/WordAgent/releases/latest"
+    # Fallbacks apply only to update metadata, not browser or download links.
+    GITHUB_RELEASE_API_URLS = (
+        GITHUB_RELEASE_API,
+        f"https://gh-proxy.com/{GITHUB_RELEASE_API}",
+    )
     WEBSITE_URL = "https://visresearch.github.io/WordAgent/"
     RELEASE_URL = "https://github.com/visresearch/WordAgent/releases/latest"
 
@@ -226,27 +255,7 @@ class HomeInterface(QWidget):
         worker.start()
 
     def _check_latest_release_worker(self):
-        result = {
-            "ok": False,
-            "latest_tag": "",
-            "latest_url": self.GITHUB_URL,
-            "error": "",
-        }
-        try:
-            req = Request(
-                self.GITHUB_RELEASE_API,
-                headers={
-                    "Accept": "application/vnd.github+json",
-                    "User-Agent": "WenCeAI-VersionChecker",
-                },
-            )
-            with urlopen(req, timeout=8) as resp:
-                payload = json.loads(resp.read().decode("utf-8"))
-            result["latest_tag"] = str(payload.get("tag_name") or "").strip()
-            result["latest_url"] = str(payload.get("html_url") or self.GITHUB_URL).strip()
-            result["ok"] = bool(result["latest_tag"])
-        except (OSError, URLError, TimeoutError, json.JSONDecodeError) as exc:
-            result["error"] = str(exc)
+        result = check_latest_release(self.GITHUB_RELEASE_API_URLS, release_url=self.RELEASE_URL)
         self.updateCheckFinished.emit(result)
 
     def _on_update_check_finished(self, result: dict):
