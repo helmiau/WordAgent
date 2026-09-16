@@ -1,0 +1,9 @@
+allowBuilds:
+  # This version's install script only runs `exit 0`.
+  '@azure/msal-node-extensions': false
+  # Removes a legacy global PowerShell shim; unnecessary for a local install.
+  '@microsoft/m365agentstoolkit-cli': false
+  # Prints a funding banner; the polyfills are already included in the package.
+  core-js: false
+  # Installs the native credential-store binding used by Office debugging tools.
+  keytar: true

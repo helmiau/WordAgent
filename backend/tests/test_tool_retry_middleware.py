@@ -249,7 +249,7 @@ def test_model_call_limit_middleware_ends_run_and_preserves_streaming() -> None:
     streamed_messages = [chunk[0] for mode, chunk in stream_items if mode == "messages"]
     final_state = [chunk for mode, chunk in stream_items if mode == "values"][-1]
 
-    assert MODEL_CALL_LIMIT_MIDDLEWARE.run_limit == 100
+    assert MODEL_CALL_LIMIT_MIDDLEWARE.run_limit == 50
     assert any(message.content == "7" for message in streamed_messages)
     assert final_state["run_model_call_count"] == 1
     assert "Model call limit" in final_state["messages"][-1].content

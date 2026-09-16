@@ -19,6 +19,8 @@ frontend/microsoft_word_plugin/
 pnpm install
 ```
 
+项目通过 `pnpm-workspace.yaml` 的 `allowBuilds`（pnpm 10.26+）记录依赖安装脚本策略：允许 `keytar` 安装原生模块，跳过无需执行的脚本。请保留此文件，避免 pnpm 11 因未配置的脚本报 `ERR_PNPM_IGNORED_BUILDS`。升级依赖后若出现新的脚本提示，应检查对应脚本再更新配置。
+
 ## 开发调试
 
 启动并旁加载插件：

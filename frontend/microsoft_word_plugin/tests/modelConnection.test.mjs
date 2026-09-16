@@ -33,7 +33,9 @@ test('connection test rejects missing latency but accepts a valid zero', async (
 
 // Exercise the actual form behavior, including Office-friendly inline feedback.
 import { readFileSync } from 'node:fs';
-import { ref, watch, computed, effectScope } from 'vue';
+import { ref, watch, computed, effectScope, createSSRApp } from 'vue';
+import { renderToString } from 'vue/server-renderer';
+import { parse } from '@vue/compiler-sfc';
 
 const modelSource = readFileSync(new URL('../src/components/setting/ModelSetting.vue', import.meta.url), 'utf8');
 const modelScript = modelSource.match(/<script>([\s\S]*?)<\/script>/)[1].replace(/^import[\s\S]*?;\s*/gm, '');
@@ -94,5 +96,54 @@ test('missing model credentials are shown without sending a request', async t =>
   await vm.testConnection(0, vm.localProviders.value[0].models[0]);
   assert.equal(vm.connectionFeedback.value.error, true);
   assert.match(vm.connectionFeedback.value.message, /credentialsRequired/);
+  assert.equal(vm.testingConnection.value, null);
+});
+
+test('connection feedback renders after the tested provider card, even when collapsed or reordered', async t => {
+  const providers = ['First', 'Tested', 'Last'].map(name => ({
+    name, apiKey: 'key', baseUrl: 'http://localhost:8000/v1',
+    models: [{ id: 'model', name: 'Deepseek V4 Flash', enabled: true }], expanded: false
+  }));
+  const vm = modelForm(t, async () => ({ latency_ms: 1127 }), providers);
+  const testedProvider = vm.localProviders.value[1];
+  await vm.testConnection(1, testedProvider.models[0]);
+  assert.equal(vm.connectionFeedback.value.provider, testedProvider);
+  const renderForm = async () => {
+    const app = createSSRApp({
+      template: parse(modelSource).descriptor.template.content,
+      setup: () => vm
+    });
+    app.config.globalProperties.$t = key => key;
+    return renderToString(app);
+  };
+  const html = await renderForm();
+  const feedbackIndex = html.indexOf('class="connection-feedback"');
+  assert.equal(html.match(/class="connection-feedback"/g).length, 1);
+  assert.ok(feedbackIndex > html.indexOf('provider-name">Tested'));
+  assert.ok(feedbackIndex < html.indexOf('provider-name">Last'));
+  // With collapsed cards, both provider-header and provider-card end before feedback.
+  assert.match(html.slice(0, feedbackIndex).replace(/<!--[\s\S]*?-->/g, ''), /<\/div>\s*<\/div>\s*<div $/);
+  assert.match(html, /Deepseek V4 Flash/);
+  assert.match(html, /1127/);
+  vm.localProviders.value.reverse();
+  const reorderedHtml = await renderForm();
+  assert.ok(reorderedHtml.indexOf('class="connection-feedback"') > reorderedHtml.indexOf('provider-name">Tested'));
+  assert.ok(reorderedHtml.indexOf('class="connection-feedback"') < reorderedHtml.indexOf('provider-name">First'));
+  vm.localProviders.value.splice(1, 1);
+  assert.doesNotMatch(await renderForm(), /class="connection-feedback"/);
+});
+
+test('a removed provider cannot attach an in-flight result to the next card', async t => {
+  let finish;
+  const providers = ['Removed', 'Remaining'].map(name => ({
+    name, apiKey: 'key', baseUrl: 'http://localhost:8000/v1', models: [{ id: 'same-model' }]
+  }));
+  const vm = modelForm(t, () => new Promise(resolve => { finish = resolve; }), providers);
+  const request = vm.testConnection(0, vm.localProviders.value[0].models[0]);
+  vm.localProviders.value.splice(0, 1);
+  assert.equal(vm.isTestingModel(0, 'same-model'), false);
+  finish({ latency_ms: 50 });
+  await request;
+  assert.equal(vm.connectionFeedback.value, null);
   assert.equal(vm.testingConnection.value, null);
 });

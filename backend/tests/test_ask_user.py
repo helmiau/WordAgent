@@ -28,19 +28,43 @@ class Model(FakeMessagesListChatModel):
         return super()._generate(messages, **kwargs)
 
 
-def test_production_stream_interrupt_restart_resume_and_tool_memory(tmp_path, monkeypatch):
+@pytest.mark.parametrize("question_format", ["legacy", "batch", "mixed"])
+def test_production_stream_interrupt_restart_resume_and_tool_memory(tmp_path, monkeypatch, question_format):
+    questions = [
+        {"question": "采用哪种风格？", "options": ["正式", "轻松"]},
+        {"question": "字数要求？", "options": []},
+    ]
+    answers = ["正式", "大约 800 字，附上小标题"]
+    calls = [
+        {"name": "ask_user", "args": question, "id": f"ask-{index + 1}"} for index, question in enumerate(questions)
+    ]
+    expected_results = [("ask-1", answers[0]), ("ask-2", answers[1])]
+    if question_format != "legacy":
+        calls = [{"name": "ask_user", "args": {"questions": questions.copy()}, "id": "ask-batch"}]
+        expected_results = [
+            (
+                "ask-batch",
+                json.dumps(
+                    {
+                        "answers": [
+                            {"question": question["question"], "answer": answer}
+                            for question, answer in zip(questions, answers, strict=True)
+                        ]
+                    },
+                    ensure_ascii=False,
+                ),
+            )
+        ]
+        if question_format == "mixed":
+            questions.append({"question": "读者是谁？", "options": ["同事", "客户"]})
+            answers.append("同事")
+            calls.append({"name": "ask_user", "args": questions[-1], "id": "ask-legacy"})
+            expected_results.append(("ask-legacy", "同事"))
     model = Model(
         responses=[
             AIMessage(
                 content="",
-                tool_calls=[
-                    {
-                        "name": "ask_user",
-                        "args": {"question": "采用哪种风格？", "options": ["正式", "轻松"]},
-                        "id": "ask-1",
-                    },
-                    {"name": "ask_user", "args": {"question": "字数要求？", "options": []}, "id": "ask-2"},
-                ],
+                tool_calls=calls,
             ),
             AIMessage(content="按你的要求继续"),
             AIMessage(content="记得上次选择"),
@@ -86,7 +110,7 @@ def test_production_stream_interrupt_restart_resume_and_tool_memory(tmp_path, mo
             output = await collect(saver)
             events = [json.loads(chunk[6:]) for chunk in output if chunk.startswith("data: {")]
             question = next(event for event in events if event["type"] == "ask_user")
-            assert len(question["questions"]) == 2
+            assert len(question["questions"]) == len(questions)
             assert len(model.seen) == 1  # No model/tool execution until a human answers.
             _, pending = await load_pending_questions(saver, build_thread_config("test-hitl"))
             assert pending == question
@@ -99,33 +123,32 @@ def test_production_stream_interrupt_restart_resume_and_tool_memory(tmp_path, mo
             assert restored == question
             response = {
                 "answers": [
-                    {"id": question["questions"][0]["id"], "answer": "正式"},
-                    {"id": question["questions"][1]["id"], "answer": "大约 800 字，附上小标题"},
+                    {"id": item["id"], "answer": answer}
+                    for item, answer in zip(question["questions"], answers, strict=True)
                 ]
             }
+            with pytest.raises(ValueError, match="请回答所有问题"):
+                await collect(saver, user_response={"answers": response["answers"][:-1]})
             output = await collect(saver, user_response=response, document_meta={"documentName": "另一个文档"})
             assert "按你的要求继续" in "".join(output)
             assert model.contexts[-1] == model.contexts[0]
             logs = json.loads(next(chunk.split(":", 1)[1] for chunk in output if chunk.startswith("__tool_json__:")))
-            assert [item["output"] for item in logs["calls"] if item["tool"] == "ask_user"] == [
-                "正式",
-                "大约 800 字，附上小标题",
-            ]
+            assert [item["output"] for item in logs["calls"] if item["tool"] == "ask_user"] == answers
             assert len(model.seen) == 2
             seen = model.seen[-1]
             assert len([message for message in seen if isinstance(message, HumanMessage)]) == 1
             results = [message for message in seen if isinstance(message, ToolMessage)]
-            assert [(message.tool_call_id, message.content) for message in results] == [
-                ("ask-1", "正式"),
-                ("ask-2", "大约 800 字，附上小标题"),
-            ]
+            assert [(message.tool_call_id, message.content) for message in results] == expected_results
             assert await load_pending_questions(saver, build_thread_config("test-hitl")) == ([], None)
             with pytest.raises(ValueError, match="已回答"):
                 await collect(saver, user_response=response)
 
         async with AsyncSqliteSaver.from_conn_string(path) as saver:
             await collect(saver)
-            assert any(isinstance(message, ToolMessage) and message.content == "正式" for message in model.seen[-1])
+            assert any(
+                isinstance(message, ToolMessage) and message.content == expected_results[0][1]
+                for message in model.seen[-1]
+            )
             assert any(isinstance(message, AIMessage) and message.tool_calls for message in model.seen[-1])
 
     asyncio.run(run())
@@ -196,7 +219,7 @@ def test_websocket_saves_question_before_allowing_resume(monkeypatch):
 def test_question_accepts_two_to_four_options_or_free_text(options):
     from app.services.tools.ask_user import AskUserInput
 
-    assert AskUserInput(question="写作风格？", options=options).options == options
+    assert AskUserInput(question="写作风格？", options=options).questions[0].options == options
 
 
 @pytest.mark.parametrize("options", [["唯一选项"], ["重复", "重复"], ["一", "二", "三", "四", "五"]])
@@ -222,3 +245,55 @@ def test_legacy_six_option_checkpoint_still_resumes_with_at_most_four_options():
     assert pending["questions"][0]["options"] == ["一", "二", "三", "四"]
     command = answer_command([interruption], {"answers": [{"id": "legacy:0", "answer": "自填另一种风格"}]})
     assert command.resume["legacy"]["decisions"] == [{"type": "respond", "message": "自填另一种风格"}]
+
+
+def test_batch_schema_exposes_questions_and_validates_each_item():
+    from app.services.tools.ask_user import AskUserInput, build_ask_user
+
+    schema = build_ask_user("Ask questions").args_schema.model_json_schema()
+    assert schema["required"] == ["questions"]
+    assert "question" not in schema["properties"]
+    question = {"question": " 风格？ ", "options": ["正式", "轻松"]}
+    assert len(AskUserInput(questions=[question] * 4).questions) == 4
+    assert AskUserInput(questions=[question]).questions[0].question == "风格？"
+    for args in [
+        {"questions": []},
+        {"questions": [question] * 5},
+        {"questions": [question, {"question": " "}]},
+        {"questions": [{"question": "风格？", "options": ["仅一个"]}]},
+        {"questions": [{"question": "风格？", "options": ["1", "2", "3", "4", "5"]}]},
+        {"questions": [question], "question": "混用？"},
+    ]:
+        with pytest.raises(ValueError):
+            AskUserInput.model_validate(args)
+
+
+def test_batch_answers_keep_question_mapping_across_actions_and_interrupts():
+    from app.services.human_input import pending_questions
+
+    interrupts = [
+        Interrupt(
+            id=key,
+            value={
+                "action_requests": [
+                    {"name": "ask_user", "args": {"questions": [{"question": "风格？"}, {"question": "字数？"}]}},
+                    {"name": "ask_user", "args": {"question": "读者？"}},
+                ]
+            },
+        )
+        for key in ("a", "b")
+    ]
+    pending = pending_questions(interrupts)["questions"]
+    answers = [{"id": q["id"], "answer": str(index)} for index, q in enumerate(pending)]
+    command = answer_command(interrupts, {"answers": list(reversed(answers))})
+    for key, offset in (("a", 0), ("b", 3)):
+        decisions = command.resume[key]["decisions"]
+        assert len(decisions) == 2
+        assert json.loads(decisions[0]["message"])["answers"] == [
+            {"question": "风格？", "answer": str(offset)},
+            {"question": "字数？", "answer": str(offset + 1)},
+        ]
+        assert decisions[1]["message"] == str(offset + 2)
+    for invalid in (answers[:-1], answers[:-1] + [answers[0]], answers[:-1] + [{"id": "stale", "answer": "有效回答"}]):
+        with pytest.raises(ValueError):
+            answer_command(interrupts, {"answers": invalid})

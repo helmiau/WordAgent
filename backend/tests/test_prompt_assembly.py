@@ -26,14 +26,20 @@ class PromptAssemblyTests(unittest.TestCase):
         self.assertNotIn("Use `generate_document` for document content", ask_prompt)
         self.assertNotIn("run_sub_agent Usage Policy", agent_prompt)
 
-    def test_single_agent_has_mandatory_document_reviewer_pass(self) -> None:
+    def test_single_agent_has_bounded_document_review(self) -> None:
         agent_prompt = single_prompts.get_agent_prompt("agent")
 
-        self.assertIn("Mandatory final reviewer pass", agent_prompt)
+        self.assertIn("Bounded, evidence-driven review", agent_prompt)
         self.assertIn('read_document(mode="full")', agent_prompt)
         self.assertIn("pageStart", agent_prompt)
         self.assertIn("pageEnd", agent_prompt)
-        self.assertIn("Re-read each corrected range", agent_prompt)
+        self.assertIn("one review pass and one correction pass", agent_prompt)
+        self.assertIn("no routine rereading after successful writes", agent_prompt)
+        self.assertIn("Failed, partial, or unknown writes require targeted state recovery", agent_prompt)
+        self.assertIn("not paragraph styles (`pStyle`)", agent_prompt)
+        self.assertNotIn("Mandatory final reviewer pass", agent_prompt)
+        self.assertNotIn("Re-read each corrected range", agent_prompt)
+        self.assertNotIn("perform the required reviewer pass first", agent_prompt)
 
     def test_single_agent_does_not_register_sub_agent_tool(self) -> None:
         self.assertNotIn("run_sub_agent", {tool.name for tool in AGENT_BASE_TOOLS})

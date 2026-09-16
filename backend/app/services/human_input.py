@@ -1,5 +1,7 @@
 """Serialize persisted HITL interrupts and validate user answers before resuming."""
 
+import json
+
 from langgraph.types import Command
 
 from app.services.tools.ask_user import AskUserInput
@@ -18,14 +20,22 @@ def pending_questions(interrupts) -> dict | None:
             raw_args = dict(action.get("args", {}))
             # Older checkpoints may contain up to six options. Keep these questions
             # answerable after upgrading without exposing an oversized option list.
-            options = raw_args.get("options")
-            if isinstance(options, list):
-                options = list(
-                    dict.fromkeys(option.strip() for option in options if isinstance(option, str) and option.strip())
-                )[:4]
-                raw_args["options"] = options if len(options) >= 2 else []
+            legacy = "questions" not in raw_args
+            if legacy:
+                options = raw_args.get("options")
+                if isinstance(options, list):
+                    options = list(
+                        dict.fromkeys(
+                            option.strip() for option in options if isinstance(option, str) and option.strip()
+                        )
+                    )[:4]
+                    raw_args["options"] = options if len(options) >= 2 else []
             args = AskUserInput.model_validate(raw_args)
-            questions.append({"id": f"{item.id}:{index}", **args.model_dump()})
+            for question_index, question in enumerate(args.questions):
+                question_id = f"{item.id}:{index}"
+                if not legacy:
+                    question_id += f":{question_index}"
+                questions.append({"id": question_id, **question.model_dump()})
     return {"type": "ask_user", "questions": questions} if questions else None
 
 
@@ -61,14 +71,26 @@ def answer_command(interrupts, response: dict) -> Command:
         by_id[question_id] = text.strip()
     if set(by_id) != {question["id"] for question in pending["questions"]}:
         raise ValueError("问题已失效，请刷新会话后重新回答")
-    return Command(
-        resume={
-            item.id: {
-                "decisions": [
-                    {"type": "respond", "message": by_id[f"{item.id}:{index}"]}
-                    for index, _ in enumerate(item.value["action_requests"])
-                ]
-            }
-            for item in interrupts
-        }
-    )
+    questions_by_id = {question["id"]: question for question in pending["questions"]}
+    resume = {}
+    for item in interrupts:
+        decisions = []
+        for index, action in enumerate(item.value["action_requests"]):
+            action_id = f"{item.id}:{index}"
+            if "questions" in action["args"]:
+                # HITL expects one decision per tool call, not one per question.
+                answers = []
+                for question_index in range(len(action["args"]["questions"])):
+                    question_id = f"{action_id}:{question_index}"
+                    answers.append(
+                        {
+                            "question": questions_by_id[question_id]["question"],
+                            "answer": by_id[question_id],
+                        }
+                    )
+                message = json.dumps({"answers": answers}, ensure_ascii=False)
+            else:
+                message = by_id[action_id]
+            decisions.append({"type": "respond", "message": message})
+        resume[item.id] = {"decisions": decisions}
+    return Command(resume=resume)

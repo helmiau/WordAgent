@@ -49,21 +49,11 @@
       </div>
     </div>
 
-    <div v-if="connectionFeedback" class="connection-feedback"
-      :class="{ 'connection-feedback-error': connectionFeedback.error }"
-      :role="connectionFeedback.error ? 'alert' : 'status'">
-      <span>{{ connectionFeedback.message }}</span>
-      <button type="button" :aria-label="$t('common.close')" @click="connectionFeedback = null">×</button>
-    </div>
-
     <!-- 提供商列表 -->
     <div class="providers-list">
       <!-- 提供商卡片 -->
-      <div
-        v-for="(provider, pIndex) in localProviders"
-        :key="pIndex"
-        class="provider-card"
-      >
+      <template v-for="(provider, pIndex) in localProviders" :key="pIndex">
+      <div class="provider-card">
         <!-- 提供商头部 -->
         <div class="provider-header">
           <div class="provider-info" @click="toggleProviderExpand(pIndex)">
@@ -307,6 +297,14 @@
         </div>
       </div>
 
+      <div v-if="connectionFeedback && connectionFeedback.provider === provider" class="connection-feedback"
+        :class="{ 'connection-feedback-error': connectionFeedback.error }"
+        :role="connectionFeedback.error ? 'alert' : 'status'">
+        <span>{{ connectionFeedback.message }}</span>
+        <button type="button" :aria-label="$t('common.close')" @click="connectionFeedback = null">×</button>
+      </div>
+      </template>
+
       <!-- 空状态 -->
       <div v-if="localProviders.length === 0" class="empty-state">
         <svg
@@ -347,7 +345,7 @@ export default {
     const testingConnection = ref(null);
     const connectionFeedback = ref(null);
     const isTestingModel = (providerIndex, modelId) => (
-      testingConnection.value?.providerIndex === providerIndex
+      testingConnection.value?.provider === localProviders.value[providerIndex]
       && testingConnection.value?.modelId === modelId
     );
     const localProviders = ref(props.providers.map(p => ({
@@ -360,6 +358,8 @@ export default {
     })));
 
     watch(() => props.providers, (newVal) => {
+      // Replaced settings invalidate feedback and any in-flight result for the old form.
+      connectionFeedback.value = null;
       localProviders.value = newVal.map(p => ({
         ...p,
         apiType: p.apiType || 'openai',
@@ -457,11 +457,11 @@ export default {
       connectionFeedback.value = null;
       const provider = localProviders.value[providerIndex];
       if (!provider?.apiKey?.trim() || !provider?.baseUrl?.trim()) {
-        connectionFeedback.value = { error: true, message: t('model.credentialsRequired') };
+        connectionFeedback.value = { provider, error: true, message: t('model.credentialsRequired') };
         return;
       }
       const modelName = model.name || model.id;
-      testingConnection.value = { providerIndex, modelId: model.id };
+      testingConnection.value = { provider, modelId: model.id };
       try {
         const result = await api.testModelConnection({
           baseUrl: provider.baseUrl.trim(),
@@ -469,12 +469,16 @@ export default {
           apiType: provider.apiType || 'openai',
           model: model.id
         });
+        if (!localProviders.value.includes(provider)) return;
         connectionFeedback.value = {
+          provider,
           error: false,
           message: t('model.connectionSuccess', { model: modelName, latency: result.latency_ms })
         };
       } catch (error) {
+        if (!localProviders.value.includes(provider)) return;
         connectionFeedback.value = {
+          provider,
           error: true,
           message: t('model.connectionFailed', { model: modelName, error: error.message || t('model.checkConfig') })
         };
@@ -728,7 +732,7 @@ export default {
   border-color: #fecaca;
 }
 
-.connection-feedback { display: flex; align-items: flex-start; gap: 12px; padding: 12px; margin-bottom: 16px; border: 1px solid #b7dfc6; border-radius: 8px; background: #effaf3; color: #24633b; font-size: 13px; overflow-wrap: anywhere; }
+.connection-feedback { display: flex; align-items: flex-start; gap: 12px; padding: 12px; margin: 0; border: 1px solid #b7dfc6; border-radius: 8px; background: #effaf3; color: #24633b; font-size: 13px; overflow-wrap: anywhere; }
 .connection-feedback span { flex: 1; min-width: 0; white-space: pre-wrap; }
 .connection-feedback button { border: 0; background: transparent; color: inherit; font-size: 18px; cursor: pointer; }
 .connection-feedback-error { border-color: #f0b6b6; background: #fff3f3; color: #a12626; }
