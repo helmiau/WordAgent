@@ -21,7 +21,7 @@ export default {
   },
   general: {
     title: 'Basic settings', subtitle: 'Configure startup behavior and display modes', language: 'Interface language',
-    simplifiedChinese: '简体中文', english: 'English', indonesian: 'Bahasa Indonesia',
+    simplifiedChinese: '简体中文', english: 'English', indonesian: 'Bahasa Indonesia', japanese: 'Japanese', korean: 'Korean', vietnamese: 'Vietnamese',
     showPanel: 'Show the AI panel at startup', proofread: 'Proofreading display mode', proofreadMode: 'Proofreading display mode',
     redBlue: 'Red/blue mode', redblue: 'Red/blue mode', redBlueDesc: 'Mark deletions in light blue and additions in light red',
     redblueDesc: 'Mark deletions in light blue and additions in light red',

@@ -14,13 +14,13 @@ from gui.i18n import t
 
 
 SERIES = (
-    ("inputTokens", t("dashboard.metrics.inputTokens"), QColor("#3b82f6")),
-    ("outputTokens", t("dashboard.metrics.outputTokens"), QColor("#22c55e")),
-    ("cachedTokens", t("dashboard.metrics.cachedTokens"), QColor("#a855f7")),
+    ("inputTokens", "dashboard.metrics.inputTokens", QColor("#3b82f6")),
+    ("outputTokens", "dashboard.metrics.outputTokens", QColor("#22c55e")),
+    ("cachedTokens", "dashboard.metrics.cachedTokens", QColor("#a855f7")),
 )
 
 METRIC_CARDS = SERIES + (
-    ("cacheHitRate", t("dashboard.metrics.cacheHitRate"), QColor("#f59e0b")),
+    ("cacheHitRate", "dashboard.metrics.cacheHitRate", QColor("#f59e0b")),
 )
 
 
@@ -81,11 +81,15 @@ class _MetricCard(CardWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(3)
-        caption = CaptionLabel(title, self)
-        caption.setTextColor(color, color)
+        self._caption = CaptionLabel(title, self)
+        self._caption.setTextColor(color, color)
         self.value = StrongBodyLabel("0", self)
-        layout.addWidget(caption)
+        layout.addWidget(self._caption)
         layout.addWidget(self.value)
+
+    def setTitle(self, title: str):
+        """Update the card caption (used on language change)."""
+        self._caption.setText(title)
 
 
 class DashboardInterface(QWidget):
@@ -129,10 +133,11 @@ class DashboardInterface(QWidget):
         header = QHBoxLayout()
         title_col = QVBoxLayout()
         title_col.setSpacing(3)
-        title_col.addWidget(TitleLabel(t("dashboard.title"), self))
-        subtitle = CaptionLabel(t("dashboard.subtitle"), self)
-        subtitle.setTextColor(QColor("#777777"), QColor("#aaaaaa"))
-        title_col.addWidget(subtitle)
+        self._title_label = TitleLabel(t("dashboard.title"), self)
+        title_col.addWidget(self._title_label)
+        self._subtitle_label = CaptionLabel(t("dashboard.subtitle"), self)
+        self._subtitle_label.setTextColor(QColor("#777777"), QColor("#aaaaaa"))
+        title_col.addWidget(self._subtitle_label)
         header.addLayout(title_col)
         header.addStretch(1)
 
@@ -147,9 +152,11 @@ class DashboardInterface(QWidget):
         metrics = QHBoxLayout()
         metrics.setSpacing(12)
         self._metric_cards: dict[str, _MetricCard] = {}
-        for key, title, color in METRIC_CARDS:
-            card = _MetricCard(title, color, self)
+        self._metric_title_keys: dict[str, str] = {}
+        for key, title_key, color in METRIC_CARDS:
+            card = _MetricCard(t(title_key), color, self)
             self._metric_cards[key] = card
+            self._metric_title_keys[key] = title_key
             metrics.addWidget(card, 1)
         root.addLayout(metrics)
 
@@ -158,7 +165,8 @@ class DashboardInterface(QWidget):
         chart_layout.setContentsMargins(14, 14, 14, 10)
         chart_layout.setSpacing(8)
         chart_header = QHBoxLayout()
-        chart_header.addWidget(StrongBodyLabel(t("dashboard.chart.trend"), chart_card))
+        self._chart_title_label = StrongBodyLabel(t("dashboard.chart.trend"), chart_card)
+        chart_header.addWidget(self._chart_title_label)
         chart_header.addStretch(1)
         self._status = BodyLabel(t("dashboard.status.loading"), chart_card)
         self._status.setStyleSheet("color: #888888;")
@@ -192,6 +200,25 @@ class DashboardInterface(QWidget):
         )
         self._detail_label.hide()
         root.addWidget(chart_card, 1)
+
+        from gui.i18n import subscribe_locale_changed
+        subscribe_locale_changed(self._retranslate)
+
+    def _retranslate(self, _locale: str = ""):
+        """Update all translatable labels on this page after a language change."""
+        self._title_label.setText(t("dashboard.title"))
+        self._subtitle_label.setText(t("dashboard.subtitle"))
+        self._chart_title_label.setText(t("dashboard.chart.trend"))
+        for route_key, text in (("today", t("dashboard.period.today")), ("7d", t("dashboard.period.7d"))):
+            item = self._period_selector.widget(route_key)
+            if item is not None:
+                item.setText(text)
+        # METRIC_CARDS now stores i18n keys; resolve t() for each card.
+        for key, card in self._metric_cards.items():
+            title_key = self._metric_title_keys.get(key)
+            if title_key is not None:
+                card.setTitle(t(title_key))
+        self.refresh()
 
     def _set_period(self, period: str):
         if self._period == period:
@@ -381,12 +408,12 @@ class DashboardInterface(QWidget):
         self._chart.addAxis(axis_x, Qt.AlignBottom)
         self._chart.addAxis(axis_y, Qt.AlignLeft)
 
-        for key, title, color in SERIES:
+        for key, title_key, color in SERIES:
             # A straight line series never overshoots zero-valued source nodes.
             series = QLineSeries()
             for index, point in enumerate(self._points):
                 series.append(index, int(point.get(key, 0) or 0) / 1000)
-            series.setName(title)
+            series.setName(t(title_key))
             series.setPen(QPen(color, 2.4))
             self._chart.addSeries(series)
             series.attachAxis(axis_x)

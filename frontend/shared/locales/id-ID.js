@@ -21,7 +21,7 @@ export default {
   },
   general: {
     title: 'Pengaturan dasar', subtitle: 'Konfigurasikan perilaku saat startup dan mode tampilan', language: 'Bahasa antarmuka',
-    simplifiedChinese: '简体中文', english: 'English', indonesian: 'Bahasa Indonesia',
+    simplifiedChinese: '简体中文', english: 'English', indonesian: 'Bahasa Indonesia', japanese: 'Bahasa Jepang', korean: 'Bahasa Korea', vietnamese: 'Bahasa Vietnam',
     showPanel: 'Tampilkan panel AI saat startup', proofread: 'Mode tampilan proofreading', proofreadMode: 'Mode tampilan proofreading',
     redBlue: 'Mode merah/biru', redblue: 'Mode merah/biru', redBlueDesc: 'Tandai penghapusan dengan biru muda dan penambahan dengan merah muda',
     redblueDesc: 'Tandai penghapusan dengan biru muda dan penambahan dengan merah muda',

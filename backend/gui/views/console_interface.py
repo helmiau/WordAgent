@@ -125,8 +125,8 @@ class ConsoleInterface(QWidget):
         header = QHBoxLayout()
         header.setSpacing(10)
 
-        title = SubtitleLabel(t("console.title"), self)
-        header.addWidget(title)
+        self._title_label = SubtitleLabel(t("console.title"), self)
+        header.addWidget(self._title_label)
         header.addStretch(1)
 
         self._openLogDirBtn = PushButton(FluentIcon.FOLDER, t("console.buttons.logDir"), self)
@@ -146,9 +146,9 @@ class ConsoleInterface(QWidget):
 
         layout.addLayout(header)
 
-        hint = CaptionLabel(t("console.hint"), self)
-        hint.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
-        layout.addWidget(hint)
+        self._hint_label = CaptionLabel(t("console.hint"), self)
+        self._hint_label.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
+        layout.addWidget(self._hint_label)
 
         # --- 日志区（包裹在 CardWidget 中） ---
         card = CardWidget(self)
@@ -180,8 +180,20 @@ class ConsoleInterface(QWidget):
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._pollBuffer)
         self._timer.start(100)
-
         self._pollBuffer()
+        from gui.i18n import subscribe_locale_changed
+        subscribe_locale_changed(self._retranslate)
+
+    def _retranslate(self, _locale: str = ""):
+        """Update all translatable labels on this page."""
+        self._title_label.setText(t("console.title"))
+        self._hint_label.setText(t("console.hint"))
+        self._openLogDirBtn.setText(t("console.buttons.logDir"))
+        self._openLogDirBtn.setToolTip(t("console.tooltips.logDir"))
+        self._clearBtn.setText(t("console.buttons.clear"))
+        self._clearBtn.setToolTip(t("console.tooltips.clear"))
+        self._scrollBtn.setText(t("console.buttons.bottom"))
+        self._scrollBtn.setToolTip(t("console.tooltips.bottom"))
 
     def _pollBuffer(self):
         if self._buf is None:

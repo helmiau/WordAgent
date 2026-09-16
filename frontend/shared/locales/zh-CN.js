@@ -21,7 +21,7 @@ export default {
   },
   general: {
     title: '基础设置', subtitle: '配置应用的启动行为和显示模式', language: '界面语言',
-    simplifiedChinese: '简体中文', english: 'English', indonesian: 'Bahasa Indonesia',
+    simplifiedChinese: '简体中文', english: 'English', indonesian: 'Bahasa Indonesia', japanese: '日语', korean: '韩语', vietnamese: '越南语',
     showPanel: '启动时显示 AI 面板', proofread: '校对显示模式', proofreadMode: '校对显示模式',
     redBlue: '红蓝模式', redblue: '红蓝模式', redBlueDesc: '使用浅蓝色标记删除内容，浅红色标记新增内容',
     redblueDesc: '使用浅蓝色标记删除内容，浅红色标记新增内容',
