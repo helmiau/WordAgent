@@ -1,3 +1,6 @@
+packages:
+  - '.'
+
 allowBuilds:
   # This version's install script only runs `exit 0`.
   '@azure/msal-node-extensions': false
