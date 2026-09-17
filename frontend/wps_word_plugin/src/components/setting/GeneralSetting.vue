@@ -228,11 +228,21 @@ export default {
     };
 
     const selectedLanguageLabel = computed(() => {
-      if (localSettings.value.language === 'en-US') return t('general.english');
-      if (localSettings.value.language === 'id-ID') return t('general.indonesian');
-      if (localSettings.value.language === 'ja-JP') return t('general.japanese');
-      if (localSettings.value.language === 'ko-KR') return t('general.korean');
-      if (localSettings.value.language === 'vi-VN') return t('general.vietnamese');
+      if (localSettings.value.language === 'en-US') {
+        return t('general.english');
+      }
+      if (localSettings.value.language === 'id-ID') {
+        return t('general.indonesian');
+      }
+      if (localSettings.value.language === 'ja-JP') {
+        return t('general.japanese');
+      }
+      if (localSettings.value.language === 'ko-KR') {
+        return t('general.korean');
+      }
+      if (localSettings.value.language === 'vi-VN') {
+        return t('general.vietnamese');
+      }
       return t('general.simplifiedChinese');
     });
 

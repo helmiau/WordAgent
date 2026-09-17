@@ -11,13 +11,25 @@ const messages = { 'en-US': enUS, 'id-ID': idID, 'zh-CN': zhCN, 'ja-JP': jaJP, '
 const I18N_KEY = Symbol('wence-i18n');
 
 function normalizeLocale(value) {
-  if (!value) return 'en-US';
+  if (!value) {
+    return 'en-US';
+  }
   const normalized = String(value).toLowerCase();
-  if (normalized === 'en-us' || normalized.startsWith('en')) return 'en-US';
-  if (normalized === 'id-id' || normalized === 'id' || normalized.startsWith('id')) return 'id-ID';
-  if (normalized === 'ja-jp' || normalized === 'ja' || normalized.startsWith('ja')) return 'ja-JP';
-  if (normalized === 'ko-kr' || normalized === 'ko' || normalized.startsWith('ko')) return 'ko-KR';
-  if (normalized === 'vi-vn' || normalized === 'vi' || normalized.startsWith('vi')) return 'vi-VN';
+  if (normalized === 'en-us' || normalized.startsWith('en')) {
+    return 'en-US';
+  }
+  if (normalized === 'id-id' || normalized === 'id' || normalized.startsWith('id')) {
+    return 'id-ID';
+  }
+  if (normalized === 'ja-jp' || normalized === 'ja' || normalized.startsWith('ja')) {
+    return 'ja-JP';
+  }
+  if (normalized === 'ko-kr' || normalized === 'ko' || normalized.startsWith('ko')) {
+    return 'ko-KR';
+  }
+  if (normalized === 'vi-vn' || normalized === 'vi' || normalized.startsWith('vi')) {
+    return 'vi-VN';
+  }
   return 'zh-CN';
 }
 

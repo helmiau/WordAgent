@@ -128,6 +128,7 @@ class HomeInterface(QWidget):
         super().__init__(parent)
         self.setObjectName("homeInterface")
         self._current_version = _read_local_version()
+        self._update_check_result: dict | None = None
         self.updateCheckFinished.connect(self._on_update_check_finished)
 
         layout = QVBoxLayout(self)
@@ -193,7 +194,9 @@ class HomeInterface(QWidget):
         self._status_label = BodyLabel(t("home.status.runningChecking"), self)
         sl.addWidget(self._status_label, 1)
 
-        self._version_label = CaptionLabel(t("home.version.current", version=self._current_version or t("home.version.unknown")), self)
+        self._version_label = CaptionLabel(
+            t("home.version.current", version=self._current_version or t("home.version.unknown")), self
+        )
         self._version_label.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
         sl.addWidget(self._version_label, alignment=Qt.AlignVCenter)
 
@@ -292,10 +295,11 @@ class HomeInterface(QWidget):
         self._lang_label.setText(t("language.label"))
         self._subtitle_label.setText(t("home.subtitle"))
         self._website_button.setText(t("home.button.website"))
-        self._version_label.setText(t("home.version.current", version=self._current_version or t("home.version.unknown")))
-        self._update_label.setText(t("home.update.checking"))
+        self._version_label.setText(
+            t("home.version.current", version=self._current_version or t("home.version.unknown"))
+        )
         self._download_button.setText(t("home.button.downloadLatest"))
-        self._status_label.setText(t("home.status.runningChecking"))
+        self._render_update_status()
         self._card_cross.setTexts(t("home.cards.crossPlatform.title"), t("home.cards.crossPlatform.desc"))
         self._card_rich.setTexts(t("home.cards.richText.title"), t("home.cards.richText.desc"))
         self._card_workflow.setTexts(t("home.cards.workflow.title"), t("home.cards.workflow.desc"))
@@ -313,6 +317,19 @@ class HomeInterface(QWidget):
         self.updateCheckFinished.emit(result)
 
     def _on_update_check_finished(self, result: dict):
+        self._update_check_result = result
+        self._render_update_status(show_notification=True)
+
+    def _render_update_status(self, *, show_notification: bool = False):
+        """Translate the current result without restarting the check or repeating notifications."""
+        result = self._update_check_result
+        self._download_button.hide()
+        if result is None:
+            self._update_label.setText(t("home.update.checking"))
+            self._update_label.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
+            self._status_label.setText(t("home.status.runningChecking"))
+            return
+
         latest_tag = str(result.get("latest_tag", "")).strip()
         if not result.get("ok"):
             self._update_label.setText(t("home.update.failed"))
@@ -329,13 +346,14 @@ class HomeInterface(QWidget):
             self._update_label.setText(t("home.update.new", tag=latest_tag))
             self._update_label.setTextColor(QColor("#d97706"), QColor("#d97706"))
             self._download_button.show()
-            InfoBar.warning(
-                title=t("home.infobar.newVersion.title"),
-                content=t("home.infobar.newVersion.content", tag=latest_tag),
-                parent=self,
-                position=InfoBarPosition.TOP,
-                duration=5000,
-            )
+            if show_notification:
+                InfoBar.warning(
+                    title=t("home.infobar.newVersion.title"),
+                    content=t("home.infobar.newVersion.content", tag=latest_tag),
+                    parent=self,
+                    position=InfoBarPosition.TOP,
+                    duration=5000,
+                )
             return
 
         self._status_label.setText(t("home.status.runningLatest"))

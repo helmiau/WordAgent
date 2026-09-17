@@ -83,15 +83,15 @@ STRINGS = {
         "subtitle": "Manage Microsoft Word web and desktop add-in installation",
         "usage": (
             "Install certificate:<br/>"
-            "1. Ensure \"Start HTTPS Service\" is running. (Auto-starts when you open this page)<br/>"
-            "2. Click \"Install Certificate\", then in the system dialog: Install Certificate -&gt; Local Machine -&gt; Place all certificates in the following store -&gt; Browse -&gt; Trusted Root Certification Authorities, then confirm.<br/>"
-            "3. Click \"Open in Browser\", if no security warning appears, certificate is installed; otherwise restart backend and try again. If still warning, install manually or contact author.<br/><br/>"
+            '1. Ensure "Start HTTPS Service" is running. (Auto-starts when you open this page)<br/>'
+            '2. Click "Install Certificate", then in the system dialog: Install Certificate -&gt; Local Machine -&gt; Place all certificates in the following store -&gt; Browse -&gt; Trusted Root Certification Authorities, then confirm.<br/>'
+            '3. Click "Open in Browser", if no security warning appears, certificate is installed; otherwise restart backend and try again. If still warning, install manually or contact author.<br/><br/>'
             "Web version:<br/>"
             "1. Open <a href='https://word.cloud.microsoft/' style='color: #2563eb; text-decoration: underline;'>https://word.cloud.microsoft/</a> and enter Word for the web.<br/>"
             "2. Go to: Home -&gt; Add-ins -&gt; More Add-ins -&gt; My Add-ins -&gt; Manage My Add-ins -&gt; Upload My Add-in<br/>"
             "3. Upload the downloaded manifest.xml. Refresh if add-in panel doesn't appear.<br/><br/>"
             "Desktop version:<br/>"
-            "1. Click \"Download manifest.xml\" and save to an empty folder.<br/>"
+            '1. Click "Download manifest.xml" and save to an empty folder.<br/>'
             "2. Right-click folder -&gt; Properties -&gt; Sharing -&gt; Share -&gt; Everyone -&gt; Share and note the network path.<br/>"
             "3. Open Microsoft Word: File -&gt; Options -&gt; Trust Center -&gt; Trust Center Settings -&gt; Trusted Add-in Catalogs, enter network path and Add Catalog, restart Word.<br/>"
             "4. If panel doesn't appear: File -&gt; Options -&gt; Customize Ribbon, add Developer to Main Tabs. Click Developer -&gt; Add-ins -&gt; Shared Folder -&gt; WenCe AI Assistant.<br/><br/>"
@@ -110,17 +110,34 @@ STRINGS = {
             "downloadSuccess": {"title": "Download Successful", "content": "manifest.xml saved to: {path}"},
             "openBrowser": {"title": "Opened in Browser"},
             "openBrowserFailed": {"title": "Failed to Open Browser"},
-            "certOpened": {"title": "Certificate File Opened", "content": "Please follow the instructions on this page"},
+            "certOpened": {
+                "title": "Certificate File Opened",
+                "content": "Please follow the instructions on this page",
+            },
             "certFailed": {"title": "Failed to open certificate, please find and install manually, path: {path}"},
             "serviceRunning": {"title": "Notice", "content": "HTTPS service is already running"},
-            "startFailed": {"title": "Failed to Start", "contentMissingDist": "microsoft_word_plugin/dist not found, please build frontend first"},
-            "startSuccess": {"title": "Started Successfully", "content": "HTTPS service started: https://{host}:{port}"},
+            "startFailed": {
+                "title": "Failed to Start",
+                "contentMissingDist": "microsoft_word_plugin/dist not found, please build frontend first",
+            },
+            "startSuccess": {
+                "title": "Started Successfully",
+                "content": "HTTPS service started: https://{host}:{port}",
+            },
             "stopped": {"title": "Stopped", "content": "HTTPS service stopped"},
             "stopFailed": {"title": "Failed to Stop"},
             "notRunning": {"title": "Notice", "content": "HTTPS service not running"},
         },
         "dialog": {"saveManifest": "Save manifest.xml", "xmlFilter": "XML Files (*.xml)"},
     },
-    "language": {"label": "Language", "english": "English", "chinese": "简体中文", "indonesian": "Bahasa Indonesia", "japanese": "Japanese", "korean": "Korean", "vietnamese": "Vietnamese"},
+    "language": {
+        "label": "Language",
+        "english": "English",
+        "chinese": "简体中文",
+        "indonesian": "Bahasa Indonesia",
+        "japanese": "Japanese",
+        "korean": "Korean",
+        "vietnamese": "Vietnamese",
+    },
     "common": {"unknownVersion": "Unknown version", "save": "Save", "cancel": "Cancel"},
 }

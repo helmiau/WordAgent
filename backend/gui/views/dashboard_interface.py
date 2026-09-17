@@ -19,9 +19,7 @@ SERIES = (
     ("cachedTokens", "dashboard.metrics.cachedTokens", QColor("#a855f7")),
 )
 
-METRIC_CARDS = SERIES + (
-    ("cacheHitRate", "dashboard.metrics.cacheHitRate", QColor("#f59e0b")),
-)
+METRIC_CARDS = SERIES + (("cacheHitRate", "dashboard.metrics.cacheHitRate", QColor("#f59e0b")),)
 
 
 class _UsageLoadSignals(QObject):
@@ -202,6 +200,7 @@ class DashboardInterface(QWidget):
         root.addWidget(chart_card, 1)
 
         from gui.i18n import subscribe_locale_changed
+
         subscribe_locale_changed(self._retranslate)
 
     def _retranslate(self, _locale: str = ""):

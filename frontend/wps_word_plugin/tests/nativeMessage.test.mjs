@@ -7,7 +7,9 @@ const title = '测试连接';
 
 test('unsupported DoAlert falls back to the WPS alert instead of silently losing the result', (t) => {
   const originalWindow = globalThis.window;
-  t.after(() => { globalThis.window = originalWindow; });
+  t.after(() => {
+    globalThis.window = originalWindow; 
+  });
   for (const result of [0, undefined, null]) {
     const alerts = [];
     globalThis.window = {
@@ -21,7 +23,9 @@ test('unsupported DoAlert falls back to the WPS alert instead of silently losing
 
 test('working native dialog uses no icon and does not show a second alert', (t) => {
   const originalWindow = globalThis.window;
-  t.after(() => { globalThis.window = originalWindow; });
+  t.after(() => {
+    globalThis.window = originalWindow; 
+  });
   for (const result of [1, 2]) {
     const assistant = { DoAlert(...args) {
       assert.equal(this, assistant);
@@ -35,9 +39,13 @@ test('working native dialog uses no icon and does not show a second alert', (t) 
 
 test('missing or throwing native API still displays the success message', (t) => {
   const originalWindow = globalThis.window;
-  t.after(() => { globalThis.window = originalWindow; });
+  t.after(() => {
+    globalThis.window = originalWindow; 
+  });
   t.mock.method(console, 'warn', () => {});
-  for (const Application of [undefined, {}, { Assistant: { DoAlert() { throw new Error('Not implemented'); } } }]) {
+  for (const Application of [undefined, {}, { Assistant: { DoAlert() {
+    throw new Error('Not implemented'); 
+  } } }]) {
     const alerts = [];
     globalThis.window = { Application, alert: text => alerts.push(text) };
     showNativeMessage(message, title);

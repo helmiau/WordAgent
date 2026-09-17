@@ -83,18 +83,18 @@ STRINGS = {
         "subtitle": "Quản lý cài đặt tiện ích web và máy tính để bàn Microsoft Word",
         "usage": (
             "Cài đặt chứng thực:<br/>"
-            "1. Đảm bảo \"Bắt đầu dịch vụ HTTPS\" đang chạy. (Tự động bắt đầu khi bạn mở trang này)<br/>"
-            "2. Nhấp vào \"Cài đặt chứng thực\", sau đó trong hộp thoại hệ thống: Cài đặt chứng thực -> Máy tính cục bộ -> Đặt tất cả chứng thực vào kho lưu trữ sau -> Duyệt -> Cơ quan phát hành chứng thực gốc đáng tin cậy, sau đó xác nhận.<br/>"
-            "3. Nhấp vào \"Mở trong trình duyệt\", nếu không có cảnh báo bảo mật, chứng thực đã được cài đặt; nếu không, khởi động lại dịch vụ backend và thử lại. Nếu vẫn có cảnh báo, hãy cài đặt thủ công hoặc liên hệ tác giả.<br/><br/>"
+            '1. Đảm bảo "Bắt đầu dịch vụ HTTPS" đang chạy. (Tự động bắt đầu khi bạn mở trang này)<br/>'
+            '2. Nhấp vào "Cài đặt chứng thực", sau đó trong hộp thoại hệ thống: Cài đặt chứng thực -> Máy tính cục bộ -> Đặt tất cả chứng thực vào kho lưu trữ sau -> Duyệt -> Cơ quan phát hành chứng thực gốc đáng tin cậy, sau đó xác nhận.<br/>'
+            '3. Nhấp vào "Mở trong trình duyệt", nếu không có cảnh báo bảo mật, chứng thực đã được cài đặt; nếu không, khởi động lại dịch vụ backend và thử lại. Nếu vẫn có cảnh báo, hãy cài đặt thủ công hoặc liên hệ tác giả.<br/><br/>'
             "Phương pháp sử dụng phiên bản web:<br/>"
             "1. Mở <a href='https://word.cloud.microsoft/' style='color: #2563eb; text-decoration: underline;'>https://word.cloud.microsoft/</a> và vào Word for the web.<br/>"
             "2. Đi đến: Trang chủ -> Tiện ích -> Tiện ích khác -> Tiện ích của tôi -> Quản lý tiện ích của tôi -> Tải tiện ích của tôi lên<br/>"
             "3. Tải lên manifest.xml đã tải xuống. Làm mới nếu bảng tiện ích không xuất hiện.<br/><br/>"
             "Phương pháp sử dụng phiên bản máy tính để bàn:<br/>"
-            "1. Nhấp vào \"Tải xuống manifest.xml\" và lưu vào một thư mục trống.<br/>"
+            '1. Nhấp vào "Tải xuống manifest.xml" và lưu vào một thư mục trống.<br/>'
             "2. Nhấp chuột phải vào thư mục -> Thuộc tính -> Chia sẻ -> Chia sẻ -> Mọi người -> Chia sẻ và ghi lại đường dẫn mạng.<br/>"
             "3. Mở Microsoft Word: Tệp -> Tùy chọn -> Trung tâm tin cậy -> Cài đặt trung tâm tin cậy -> Danh mục tiện ích đáng tin cậy, nhập đường dẫn mạng và Thêm danh mục, khởi động lại Word.<br/>"
-            "4. Nếu bảng không xuất hiện: Tệp -> Tùy chọn -> Tùy chỉnh băng ribbon, thêm Nhà phát triển vào tab chính. Nhấp vào tab \"Nhà phát triển\" của Word, Tiện ích -> Thư mục chia sẻ -> WenCe AI Assistant.<br/><br/>"
+            '4. Nếu bảng không xuất hiện: Tệp -> Tùy chọn -> Tùy chỉnh băng ribbon, thêm Nhà phát triển vào tab chính. Nhấp vào tab "Nhà phát triển" của Word, Tiện ích -> Thư mục chia sẻ -> WenCe AI Assistant.<br/><br/>'
             "【Hướng dẫn chi tiết: <a href='https://visresearch.github.io/WordAgent/' style='color: #2563eb; text-decoration: underline;'>https://visresearch.github.io/WordAgent/</a>】"
         ),
         "buttons": {
@@ -106,21 +106,41 @@ STRINGS = {
         },
         "status": {"running": "Dịch vụ đang chạy (https://{host}:{port})", "stopped": "Dịch vụ không chạy"},
         "infobar": {
-            "downloadFailed": {"title": "Tải xuống thất bại", "contentMissing": "Không tìm thấy gui/resources/manifest.xml"},
+            "downloadFailed": {
+                "title": "Tải xuống thất bại",
+                "contentMissing": "Không tìm thấy gui/resources/manifest.xml",
+            },
             "downloadSuccess": {"title": "Tải xuống thành công", "content": "Đã lưu manifest.xml vào: {path}"},
             "openBrowser": {"title": "Đã mở trong trình duyệt"},
             "openBrowserFailed": {"title": "Không thể mở trình duyệt"},
             "certOpened": {"title": "Đã mở tệp chứng thực", "content": "Vui lòng làm theo hướng dẫn trên trang này"},
-            "certFailed": {"title": "Không thể mở chứng thực", "content": "Vui lòng tìm và cài đặt thủ công, đường dẫn: {path}"},
+            "certFailed": {
+                "title": "Không thể mở chứng thực",
+                "content": "Vui lòng tìm và cài đặt thủ công, đường dẫn: {path}",
+            },
             "serviceRunning": {"title": "Thông báo", "content": "Dịch vụ HTTPS đã đang chạy"},
-            "startFailed": {"title": "Khởi động thất bại", "contentMissingDist": "Không tìm thấy microsoft_word_plugin/dist, vui lòng xây dựng frontend trước"},
-            "startSuccess": {"title": "Khởi động thành công", "content": "Đã khởi động dịch vụ HTTPS: https://{host}:{port}"},
+            "startFailed": {
+                "title": "Khởi động thất bại",
+                "contentMissingDist": "Không tìm thấy microsoft_word_plugin/dist, vui lòng xây dựng frontend trước",
+            },
+            "startSuccess": {
+                "title": "Khởi động thành công",
+                "content": "Đã khởi động dịch vụ HTTPS: https://{host}:{port}",
+            },
             "stopped": {"title": "Đã dừng", "content": "Đã dừng dịch vụ HTTPS"},
             "stopFailed": {"title": "Dừng thất bại"},
             "notRunning": {"title": "Thông báo", "content": "Dịch vụ HTTPS không chạy"},
         },
         "dialog": {"saveManifest": "Lưu manifest.xml", "xmlFilter": "Tệp XML (*.xml)"},
     },
-    "language": {"label": "Ngôn ngữ", "english": "English", "chinese": "简体中文", "indonesian": "Bahasa Indonesia", "japanese": "日本語", "korean": "한국어", "vietnamese": "Tiếng Việt"},
+    "language": {
+        "label": "Ngôn ngữ",
+        "english": "English",
+        "chinese": "简体中文",
+        "indonesian": "Bahasa Indonesia",
+        "japanese": "日本語",
+        "korean": "한국어",
+        "vietnamese": "Tiếng Việt",
+    },
     "common": {"unknownVersion": "Không xác định", "save": "Lưu", "cancel": "Hủy"},
 }

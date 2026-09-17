@@ -924,7 +924,8 @@ def _delete_document_impl(paraIDs: list[int | str], docId: DocIdInput) -> dict:
         "docId": resolved_doc_id,
         "paraIDs": deduped_para_ids,
         "requestedCount": len(deduped_para_ids),
-        "deletedCount": None if isinstance(frontend_result, dict) and frontend_result.get("rollbackVerified") is False
+        "deletedCount": None
+        if isinstance(frontend_result, dict) and frontend_result.get("rollbackVerified") is False
         else max(0, deleted_count or 0),
         "missingParaIDs": missing_para_ids,
         "failedParaIDs": failed_para_ids,
@@ -1010,9 +1011,14 @@ def _edit_document_impl(paraID: RequiredParaIdInput, runs: list[Run], docId: Doc
         if style_ref is not None:
             style = (edit_style_context.get() or {}).get(style_ref) if isinstance(style_ref, str) else None
             if not isinstance(style, list) or len(style) != 11:
-                return {"success": False, "docId": resolved_doc_id, "paraID": normalized_para_id,
-                        "errorCode": "unresolved_character_style", "requiresRead": True,
-                        "error": f"无法解析字符样式 {style_ref}。请 read_document(full) 读取该文档，使用最近返回的 rStyle；尚未修改文档。"}
+                return {
+                    "success": False,
+                    "docId": resolved_doc_id,
+                    "paraID": normalized_para_id,
+                    "errorCode": "unresolved_character_style",
+                    "requiresRead": True,
+                    "error": f"无法解析字符样式 {style_ref}。请 read_document(full) 读取该文档，使用最近返回的 rStyle；尚未修改文档。",
+                }
             # Resolve only rStyle. pStyle and paragraph marks are never edited.
             run_dict["rStyle"] = list(style)
         normalized_runs.append(run_dict)

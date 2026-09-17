@@ -24,7 +24,11 @@ STRINGS = {
             "latest": "最新です",
             "new": "新しいバージョン: {tag}",
         },
-        "button": {"github": "GitHub", "website": "ウェブサイトドキュメント", "downloadLatest": "最新バージョンをダウンロード"},
+        "button": {
+            "github": "GitHub",
+            "website": "ウェブサイトドキュメント",
+            "downloadLatest": "最新バージョンをダウンロード",
+        },
         "cards": {
             "crossPlatform": {
                 "title": "クロスプラットフォーム",
@@ -106,21 +110,41 @@ STRINGS = {
         },
         "status": {"running": "サービス実行中 (https://{host}:{port})", "stopped": "サービスが実行されていません"},
         "infobar": {
-            "downloadFailed": {"title": "ダウンロード失敗", "contentMissing": "gui/resources/manifest.xmlが見つかりません"},
+            "downloadFailed": {
+                "title": "ダウンロード失敗",
+                "contentMissing": "gui/resources/manifest.xmlが見つかりません",
+            },
             "downloadSuccess": {"title": "ダウンロード成功", "content": "manifest.xmlを保存しました: {path}"},
             "openBrowser": {"title": "ブラウザで開きました"},
             "openBrowserFailed": {"title": "ブラウザを開けませんでした"},
             "certOpened": {"title": "証明書ファイルを開きました", "content": "このページの指示に従ってください"},
-            "certFailed": {"title": "証明書を開けませんでした", "content": "手動で見つけてインストールしてください。パス: {path}"},
+            "certFailed": {
+                "title": "証明書を開けませんでした",
+                "content": "手動で見つけてインストールしてください。パス: {path}",
+            },
             "serviceRunning": {"title": "お知らせ", "content": "HTTPSサービスは既に実行中です"},
-            "startFailed": {"title": "開始に失敗しました", "contentMissingDist": "microsoft_word_plugin/distが見つかりません。先にフロントエンドをビルドしてください"},
-            "startSuccess": {"title": "正常に開始しました", "content": "HTTPSサービスを開始しました: https://{host}:{port}"},
+            "startFailed": {
+                "title": "開始に失敗しました",
+                "contentMissingDist": "microsoft_word_plugin/distが見つかりません。先にフロントエンドをビルドしてください",
+            },
+            "startSuccess": {
+                "title": "正常に開始しました",
+                "content": "HTTPSサービスを開始しました: https://{host}:{port}",
+            },
             "stopped": {"title": "停止しました", "content": "HTTPSサービスを停止しました"},
             "stopFailed": {"title": "停止に失敗しました"},
             "notRunning": {"title": "お知らせ", "content": "HTTPSサービスが実行されていません"},
         },
         "dialog": {"saveManifest": "manifest.xmlを保存", "xmlFilter": "XMLファイル (*.xml)"},
     },
-    "language": {"label": "言語", "english": "English", "chinese": "简体中文", "indonesian": "Bahasa Indonesia", "japanese": "日本語", "korean": "한국어", "vietnamese": "Tiếng Việt"},
+    "language": {
+        "label": "言語",
+        "english": "English",
+        "chinese": "简体中文",
+        "indonesian": "Bahasa Indonesia",
+        "japanese": "日本語",
+        "korean": "한국어",
+        "vietnamese": "Tiếng Việt",
+    },
     "common": {"unknownVersion": "不明なバージョン", "save": "保存", "cancel": "キャンセル"},
 }

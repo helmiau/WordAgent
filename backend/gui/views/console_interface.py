@@ -182,6 +182,7 @@ class ConsoleInterface(QWidget):
         self._timer.start(100)
         self._pollBuffer()
         from gui.i18n import subscribe_locale_changed
+
         subscribe_locale_changed(self._retranslate)
 
     def _retranslate(self, _locale: str = ""):

@@ -6,7 +6,7 @@ import { editDocxParagraph } from '../src/components/js/docxJsonConverter.js';
 function mockDocument() {
   const operations = [];
   const fonts = [];
-  const paragraphStyle = { alignment: "justify", firstLineIndent: 24 };
+  const paragraphStyle = { alignment: 'justify', firstLineIndent: 24 };
   const para = {
     ParaID: 101,
     Range: { Start: 10, End: 16, ParagraphFormat: paragraphStyle }
@@ -16,7 +16,9 @@ function mockDocument() {
     Content: { End: 100 },
     Range(start, end) {
       const range = { Start: start, End: end, Font: {}, Select() {},
-        set ParagraphFormat(_) { throw new Error('pStyle must not be modified'); } };
+        set ParagraphFormat(_) {
+          throw new Error('pStyle must not be modified'); 
+        } };
       fonts.push(range.Font);
       Object.defineProperty(range, 'Text', {
         set(value) {
@@ -48,7 +50,6 @@ test('空 runs 清空段落正文但保留段落', () => {
   assert.equal(result.success, true);
   assert.deepEqual(doc.operations, [{ type: 'delete', start: 10, end: 15 }]);
 });
-
 
 test('字符样式分别应用于中英文 run，保留 pStyle 和段落标记', () => {
   const doc = mockDocument();

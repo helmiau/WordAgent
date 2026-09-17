@@ -83,15 +83,15 @@ STRINGS = {
         "subtitle": "Kelola instalasi add-in Microsoft Word web dan desktop",
         "usage": (
             "Instal sertifikat:<br/>"
-            "1. Pastikan \"Mulai Layanan HTTPS\" berjalan. (Otomatis dimulai saat membuka halaman ini)<br/>"
-            "2. Klik \"Instal Sertifikat\", lalu di dialog sistem: Instal Sertifikat -&gt; Mesin Lokal -&gt; Tempatkan semua sertifikat di penyimpanan berikut -&gt; Jelajahi -&gt; Otoritas Sertifikasi Root Tepercaya, lalu konfirmasi.<br/>"
-            "3. Klik \"Buka di Browser\", jika tidak ada peringatan keamanan, sertifikat terpasang; jika masih ada peringatan, restart backend dan coba lagi. Jika masih gagal, instal manual atau hubungi penulis.<br/><br/>"
+            '1. Pastikan "Mulai Layanan HTTPS" berjalan. (Otomatis dimulai saat membuka halaman ini)<br/>'
+            '2. Klik "Instal Sertifikat", lalu di dialog sistem: Instal Sertifikat -&gt; Mesin Lokal -&gt; Tempatkan semua sertifikat di penyimpanan berikut -&gt; Jelajahi -&gt; Otoritas Sertifikasi Root Tepercaya, lalu konfirmasi.<br/>'
+            '3. Klik "Buka di Browser", jika tidak ada peringatan keamanan, sertifikat terpasang; jika masih ada peringatan, restart backend dan coba lagi. Jika masih gagal, instal manual atau hubungi penulis.<br/><br/>'
             "Versi web:<br/>"
             "1. Buka <a href='https://word.cloud.microsoft/' style='color: #2563eb; text-decoration: underline;'>https://word.cloud.microsoft/</a> dan masuk ke Word untuk web.<br/>"
             "2. Buka: Beranda -&gt; Add-in -&gt; Add-in Lainnya -&gt; Add-in Saya -&gt; Kelola Add-in Saya -&gt; Unggah Add-in Saya<br/>"
             "3. Unggah manifest.xml yang diunduh. Refresh jika panel add-in tidak muncul.<br/><br/>"
             "Versi desktop:<br/>"
-            "1. Klik \"Unduh manifest.xml\" dan simpan ke folder kosong.<br/>"
+            '1. Klik "Unduh manifest.xml" dan simpan ke folder kosong.<br/>'
             "2. Klik kanan folder -&gt; Properti -&gt; Berbagi -&gt; Bagikan -&gt; Everyone -&gt; Bagikan dan catat jalur jaringan.<br/>"
             "3. Buka Microsoft Word: File -&gt; Opsi -&gt; Pusat Kepercayaan -&gt; Pengaturan Pusat Kepercayaan -&gt; Katalog Add-in Tepercaya, masukkan jalur jaringan dan Tambah Katalog, restart Word.<br/>"
             "4. Jika panel tidak muncul: File -&gt; Opsi -&gt; Sesuaikan Pita, tambahkan Pengembang ke Tab Utama. Klik Pengembang -&gt; Add-in -&gt; Folder Bersama -&gt; Asisten WenCe AI.<br/><br/>"
@@ -104,7 +104,10 @@ STRINGS = {
             "openBrowser": "Buka di Browser",
             "stop": "Hentikan Layanan",
         },
-        "status": {"running": "Status layanan: Berjalan (https://{host}:{port})", "stopped": "Status layanan: Tidak berjalan"},
+        "status": {
+            "running": "Status layanan: Berjalan (https://{host}:{port})",
+            "stopped": "Status layanan: Tidak berjalan",
+        },
         "infobar": {
             "downloadFailed": {"title": "Gagal Unduh", "contentMissing": "gui/resources/manifest.xml tidak ditemukan"},
             "downloadSuccess": {"title": "Berhasil Diunduh", "content": "manifest.xml disimpan ke: {path}"},
@@ -113,7 +116,10 @@ STRINGS = {
             "certOpened": {"title": "File Sertifikat Dibuka", "content": "Silakan ikuti petunjuk di halaman ini"},
             "certFailed": {"title": "Gagal membuka sertifikat, silakan cari dan instal manual, jalur: {path}"},
             "serviceRunning": {"title": "Pemberitahuan", "content": "Layanan HTTPS sudah berjalan"},
-            "startFailed": {"title": "Gagal Memulai", "contentMissingDist": "microsoft_word_plugin/dist tidak ditemukan, silakan build frontend terlebih dahulu"},
+            "startFailed": {
+                "title": "Gagal Memulai",
+                "contentMissingDist": "microsoft_word_plugin/dist tidak ditemukan, silakan build frontend terlebih dahulu",
+            },
             "startSuccess": {"title": "Berhasil Dimulai", "content": "Layanan HTTPS dimulai: https://{host}:{port}"},
             "stopped": {"title": "Dihentikan", "content": "Layanan HTTPS dihentikan"},
             "stopFailed": {"title": "Gagal Menghentikan"},
@@ -121,6 +127,14 @@ STRINGS = {
         },
         "dialog": {"saveManifest": "Simpan manifest.xml", "xmlFilter": "File XML (*.xml)"},
     },
-    "language": {"label": "Bahasa", "english": "English", "chinese": "简体中文", "indonesian": "Bahasa Indonesia", "japanese": "Bahasa Jepang", "korean": "Bahasa Korea", "vietnamese": "Bahasa Vietnam"},
+    "language": {
+        "label": "Bahasa",
+        "english": "English",
+        "chinese": "简体中文",
+        "indonesian": "Bahasa Indonesia",
+        "japanese": "Bahasa Jepang",
+        "korean": "Bahasa Korea",
+        "vietnamese": "Bahasa Vietnam",
+    },
     "common": {"unknownVersion": "Versi tidak diketahui", "save": "Simpan", "cancel": "Batal"},
 }

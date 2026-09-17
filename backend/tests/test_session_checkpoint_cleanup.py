@@ -100,8 +100,10 @@ def test_get_session_returns_checkpoint_token_stats(monkeypatch) -> None:
 
     monkeypatch.setattr(sessions, "SessionService", Service)
     monkeypatch.setattr(sessions, "get_thread_token_stats", fake_token_stats)
+
     async def no_pending(*_args):
         return [], None
+
     monkeypatch.setattr(sessions, "load_pending_questions", no_pending)
     response = asyncio.run(sessions.get_session(91, _request(checkpointer), object()))
 

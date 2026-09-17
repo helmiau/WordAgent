@@ -221,6 +221,7 @@ class OfficeInstallInterface(QWidget):
 
         self._update_service_status()
         from gui.i18n import subscribe_locale_changed
+
         subscribe_locale_changed(self._retranslate)
         QTimer.singleShot(0, self._on_start_service)
 

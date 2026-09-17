@@ -26,10 +26,22 @@ STRINGS = {
         },
         "button": {"github": "GitHub", "website": "官网文档", "downloadLatest": "前往下载最新版本"},
         "cards": {
-            "crossPlatform": {"title": "跨平台适配", "desc": "以 WPS 和 Microsoft Word 为载体，同时支持 Windows 和 Linux，让用户低门槛获得 AI 写作辅助体验。"},
-            "richText": {"title": "原生富文本生成", "desc": "智能体理解 Word 文档结构，支持标题、正文、加粗、字体、缩进、行距等样式生成与编辑。"},
-            "workflow": {"title": "工具化工作流", "desc": "通过文档工具、MCP 和 Skill 完成长文写作、资料查询与复杂编辑任务。"},
-            "open": {"title": "自由开放", "desc": "支持自定义 API 或本地服务，兼容多数主流 LLM 服务商，模型选择更灵活。"},
+            "crossPlatform": {
+                "title": "跨平台适配",
+                "desc": "以 WPS 和 Microsoft Word 为载体，同时支持 Windows 和 Linux，让用户低门槛获得 AI 写作辅助体验。",
+            },
+            "richText": {
+                "title": "原生富文本生成",
+                "desc": "智能体理解 Word 文档结构，支持标题、正文、加粗、字体、缩进、行距等样式生成与编辑。",
+            },
+            "workflow": {
+                "title": "工具化工作流",
+                "desc": "通过文档工具、MCP 和 Skill 完成长文写作、资料查询与复杂编辑任务。",
+            },
+            "open": {
+                "title": "自由开放",
+                "desc": "支持自定义 API 或本地服务，兼容多数主流 LLM 服务商，模型选择更灵活。",
+            },
         },
         "infobar": {"newVersion": {"title": "发现新版本", "content": "检测到最新版本 {tag}，请前往官网下载安装。"}},
     },
@@ -96,7 +108,10 @@ STRINGS = {
             "certOpened": {"title": "已打开证书文件", "content": "请按照本界面提示操作"},
             "certFailed": {"title": "打开证书失败，请手动找到证书文件并安装，证书路径：{path}"},
             "serviceRunning": {"title": "提示", "content": "HTTPS 服务已在运行"},
-            "startFailed": {"title": "启动失败", "contentMissingDist": "未找到 microsoft_word_plugin/dist，请先构建前端"},
+            "startFailed": {
+                "title": "启动失败",
+                "contentMissingDist": "未找到 microsoft_word_plugin/dist，请先构建前端",
+            },
             "startSuccess": {"title": "启动成功", "content": "HTTPS 服务已启动：https://{host}:{port}"},
             "stopped": {"title": "已关闭", "content": "HTTPS 服务已停止"},
             "stopFailed": {"title": "关闭失败"},
@@ -104,6 +119,14 @@ STRINGS = {
         },
         "dialog": {"saveManifest": "保存 manifest.xml", "xmlFilter": "XML 文件 (*.xml)"},
     },
-    "language": {"label": "界面语言", "english": "English", "chinese": "简体中文", "indonesian": "Bahasa Indonesia", "japanese": "日语", "korean": "韩语", "vietnamese": "越南语"},
+    "language": {
+        "label": "界面语言",
+        "english": "English",
+        "chinese": "简体中文",
+        "indonesian": "Bahasa Indonesia",
+        "japanese": "日语",
+        "korean": "韩语",
+        "vietnamese": "越南语",
+    },
     "common": {"unknownVersion": "未知版本", "save": "保存", "cancel": "取消"},
 }

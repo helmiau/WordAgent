@@ -126,6 +126,7 @@ class MainWindow(QMainWindow):
             routeKey="homeInterface",
             icon=FluentIcon.HOME,
             text=t("nav.home"),
+            tooltip=t("nav.home"),
             onClick=lambda: self._switchPage(self._homeInterface),
             position=NavigationItemPosition.TOP,
         )
@@ -133,6 +134,7 @@ class MainWindow(QMainWindow):
             routeKey="dashboardInterface",
             icon=QIcon(_icon_path("dashboard.svg")),
             text=t("nav.dashboard"),
+            tooltip=t("nav.dashboard"),
             onClick=lambda: self._switchPage(self._dashboardInterface),
             position=NavigationItemPosition.BOTTOM,
         )
@@ -140,6 +142,7 @@ class MainWindow(QMainWindow):
             routeKey="installInterface",
             icon=QIcon(_icon_path("WPS.svg")),
             text=t("nav.wps"),
+            tooltip=t("nav.wps"),
             onClick=lambda: self._switchPage(self._installInterface),
             position=NavigationItemPosition.TOP,
         )
@@ -147,6 +150,7 @@ class MainWindow(QMainWindow):
             routeKey="officeInstallInterface",
             icon=QIcon(_icon_path("Office.svg")),
             text=t("nav.office"),
+            tooltip=t("nav.office"),
             onClick=lambda: self._switchPage(self._officeInstallInterface),
             position=NavigationItemPosition.TOP,
         )
@@ -154,6 +158,7 @@ class MainWindow(QMainWindow):
             routeKey="consoleInterface",
             icon=FluentIcon.COMMAND_PROMPT,
             text=t("nav.console"),
+            tooltip=t("nav.console"),
             onClick=lambda: self._switchPage(self._consoleInterface),
             position=NavigationItemPosition.BOTTOM,
         )
@@ -177,10 +182,9 @@ class MainWindow(QMainWindow):
             "consoleInterface": t("nav.console"),
         }
         for key, text in labels.items():
-            try:
-                self._nav.setItemText(key, text)
-            except Exception:
-                pass
+            item = self._nav.widget(key)
+            item.setText(text)
+            item.setToolTip(text)
 
     def _switchPage(self, widget):
         self._stack.setCurrentWidget(widget)
