@@ -1,12 +1,23 @@
 import { ref } from 'vue';
 import enUS from '../locales/en-US.js';
+import idID from '../locales/id-ID.js';
 import zhCN from '../locales/zh-CN.js';
 
+import jaJP from '../locales/ja-JP.js';
+import koKR from '../locales/ko-KR.js';
+import viVN from '../locales/vi-VN.js';
 const STORAGE_KEY = 'wence-interface-language';
-const messages = { 'zh-CN': zhCN, 'en-US': enUS };
+const messages = { 'zh-CN': zhCN, 'en-US': enUS, 'id-ID': idID, 'ja-JP': jaJP, 'ko-KR': koKR, 'vi-VN': viVN };
 
 function normalizeLocale(value) {
-  return value === 'en-US' ? 'en-US' : 'zh-CN';
+  if (!value) return 'en-US';
+  const normalized = String(value).toLowerCase();
+  if (normalized === 'en-us' || normalized.startsWith('en')) return 'en-US';
+  if (normalized === 'id-id' || normalized === 'id' || normalized.startsWith('id')) return 'id-ID';
+  if (normalized === 'ja-jp' || normalized === 'ja' || normalized.startsWith('ja')) return 'ja-JP';
+  if (normalized === 'ko-kr' || normalized === 'ko' || normalized.startsWith('ko')) return 'ko-KR';
+  if (normalized === 'vi-vn' || normalized === 'vi' || normalized.startsWith('vi')) return 'vi-VN';
+  return 'zh-CN';
 }
 
 let storedLocale = '';

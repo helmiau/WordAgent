@@ -434,8 +434,12 @@ class ToolNormalizationAndLoggingMiddleware(AgentMiddleware):
         else:
             styles, refusal = prepare_document_call(normalized_request.tool_call, normalized_request.state)
             if refusal:
-                result = ToolMessage(content=json.dumps(refusal, ensure_ascii=False),
-                                     tool_call_id=request.tool_call["id"], name=request.tool_call["name"], status="error")
+                result = ToolMessage(
+                    content=json.dumps(refusal, ensure_ascii=False),
+                    tool_call_id=request.tool_call["id"],
+                    name=request.tool_call["name"],
+                    status="error",
+                )
             else:
                 token = edit_style_context.set(styles)
                 try:
@@ -459,8 +463,12 @@ class ToolNormalizationAndLoggingMiddleware(AgentMiddleware):
         else:
             styles, refusal = prepare_document_call(normalized_request.tool_call, normalized_request.state)
             if refusal:
-                result = ToolMessage(content=json.dumps(refusal, ensure_ascii=False),
-                                     tool_call_id=request.tool_call["id"], name=request.tool_call["name"], status="error")
+                result = ToolMessage(
+                    content=json.dumps(refusal, ensure_ascii=False),
+                    tool_call_id=request.tool_call["id"],
+                    name=request.tool_call["name"],
+                    status="error",
+                )
             else:
                 token = edit_style_context.set(styles)
                 try:
@@ -482,15 +490,26 @@ MODEL_CALL_LIMIT_MIDDLEWARE = ModelCallLimitMiddleware(
 
 TOOL_NORMALIZATION_AND_LOGGING_MIDDLEWARE = ToolNormalizationAndLoggingMiddleware()
 
+
 class MutationSafeToolRetryMiddleware(ToolRetryMiddleware):
     """Read tools may retry; a write exception requires inspection, never replay."""
 
     @staticmethod
     def _uncertain(request, exc):
         return ToolMessage(
-            content=json.dumps({"success": None, "requiresRead": True, "retryable": False,
-                                "error": f"写操作异常，未自动重试；请读取目标区域确认实际状态：{exc}"}, ensure_ascii=False),
-            tool_call_id=request.tool_call["id"], name=request.tool_call["name"], status="error")
+            content=json.dumps(
+                {
+                    "success": None,
+                    "requiresRead": True,
+                    "retryable": False,
+                    "error": f"写操作异常，未自动重试；请读取目标区域确认实际状态：{exc}",
+                },
+                ensure_ascii=False,
+            ),
+            tool_call_id=request.tool_call["id"],
+            name=request.tool_call["name"],
+            status="error",
+        )
 
     def wrap_tool_call(self, request, handler):
         if request.tool_call["name"] not in MUTATIONS:

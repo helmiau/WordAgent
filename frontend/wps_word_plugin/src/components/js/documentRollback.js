@@ -3,12 +3,16 @@ import { getParagraphParaID } from './docxJsonConverter.js';
 // Capture before mutating: live WPS Paragraph/Range objects change after Delete.
 export function captureDeleteSnapshot(doc, paragraphs) {
   const documentText = doc.Content.Text;
-  if (typeof documentText !== 'string') throw new Error('无法获取删除前的文档快照，未执行删除');
+  if (typeof documentText !== 'string') {
+    throw new Error('无法获取删除前的文档快照，未执行删除');
+  }
   return {
     documentText,
     paragraphs: paragraphs.map(para => {
       const text = para.Range.Text;
-      if (typeof text !== 'string') throw new Error('无法获取删除前的段落快照，未执行删除');
+      if (typeof text !== 'string') {
+        throw new Error('无法获取删除前的段落快照，未执行删除');
+      }
       return { paraID: Number(getParagraphParaID(para)), text };
     })
   };
@@ -22,7 +26,9 @@ export function rollbackDeletedParagraphs(doc, snapshot, undoCount, application)
     } else {
       const active = application?.ActiveDocument;
       const sameDocument = active === doc || (doc.DocID != null && active?.DocID === doc.DocID);
-      if (!sameDocument) throw new Error('目标文档不是活动文档，未调用全局 Undo');
+      if (!sameDocument) {
+        throw new Error('目标文档不是活动文档，未调用全局 Undo');
+      }
       application.Undo(undoCount);
     }
   } catch (error) {

@@ -664,11 +664,18 @@ async def process_writing_request_stream(
                     _config.update(langsmith_config)
 
                 stream_kwargs = {
-                    "input": resume_command if resume_command is not None else {
+                    "input": resume_command
+                    if resume_command is not None
+                    else {
                         "messages": messages,
-                        "request_context": {"document_range": document_range, "document_meta": document_meta,
-                                            "model": model, "provider": provider, "mode": mode,
-                                            "enable_thinking": enable_thinking},
+                        "request_context": {
+                            "document_range": document_range,
+                            "document_meta": document_meta,
+                            "model": model,
+                            "provider": provider,
+                            "mode": mode,
+                            "enable_thinking": enable_thinking,
+                        },
                     },
                     "stream_mode": ["messages", "custom", "updates"],
                     "config": _config,
@@ -693,7 +700,12 @@ async def process_writing_request_stream(
                         asyncio.run_coroutine_threadsafe(queue.put(None), loop)
                         return
                     except Exception as e:
-                        if resume_command is None and image_content_parts and not image_fallback_applied and _is_image_input_unsupported_error(e):
+                        if (
+                            resume_command is None
+                            and image_content_parts
+                            and not image_fallback_applied
+                            and _is_image_input_unsupported_error(e)
+                        ):
                             image_fallback_applied = True
                             logger.warning("[Agent] ⚠️ 当前端点不支持图像输入，自动降级为文本模式重试")
                             stream_kwargs["input"] = {**stream_kwargs["input"], "messages": text_only_messages}
@@ -744,8 +756,10 @@ async def process_writing_request_stream(
                     _waiting_for_user = True
                     question_text = "\n".join(item["question"] for item in pending["questions"])
                     _assistant_text_for_memory_parts.append(question_text)
-                    tool_log.extend({"tool": "ask_user", "input": item, "output": None, "status": "waiting"}
-                                    for item in pending["questions"])
+                    tool_log.extend(
+                        {"tool": "ask_user", "input": item, "output": None, "status": "waiting"}
+                        for item in pending["questions"]
+                    )
                     yield f"data: {json.dumps(pending, ensure_ascii=False)}\n\n"
 
             if input_type == "messages":

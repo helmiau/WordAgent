@@ -54,12 +54,52 @@
           <button
             type="button"
             class="language-option"
+            :class="{ selected: localSettings.language === 'id-ID' }"
+            role="option"
+            :aria-selected="localSettings.language === 'id-ID'"
+            @click="selectLanguage('id-ID')"
+          >
+            {{ $t('general.indonesian') }}
+          </button>
+          <button
+            type="button"
+            class="language-option"
             :class="{ selected: localSettings.language === 'en-US' }"
             role="option"
             :aria-selected="localSettings.language === 'en-US'"
             @click="selectLanguage('en-US')"
           >
             {{ $t('general.english') }}
+          </button>
+          <button
+            type="button"
+            class="language-option"
+            :class="{ selected: localSettings.language === 'ja-JP' }"
+            role="option"
+            :aria-selected="localSettings.language === 'ja-JP'"
+            @click="selectLanguage('ja-JP')"
+          >
+            {{ $t('general.japanese') }}
+          </button>
+          <button
+            type="button"
+            class="language-option"
+            :class="{ selected: localSettings.language === 'ko-KR' }"
+            role="option"
+            :aria-selected="localSettings.language === 'ko-KR'"
+            @click="selectLanguage('ko-KR')"
+          >
+            {{ $t('general.korean') }}
+          </button>
+          <button
+            type="button"
+            class="language-option"
+            :class="{ selected: localSettings.language === 'vi-VN' }"
+            role="option"
+            :aria-selected="localSettings.language === 'vi-VN'"
+            @click="selectLanguage('vi-VN')"
+          >
+            {{ $t('general.vietnamese') }}
           </button>
         </div>
       </div>
@@ -187,11 +227,24 @@ export default {
       });
     };
 
-    const selectedLanguageLabel = computed(() => (
-      localSettings.value.language === 'en-US'
-        ? t('general.english')
-        : t('general.simplifiedChinese')
-    ));
+    const selectedLanguageLabel = computed(() => {
+      if (localSettings.value.language === 'en-US') {
+        return t('general.english');
+      }
+      if (localSettings.value.language === 'id-ID') {
+        return t('general.indonesian');
+      }
+      if (localSettings.value.language === 'ja-JP') {
+        return t('general.japanese');
+      }
+      if (localSettings.value.language === 'ko-KR') {
+        return t('general.korean');
+      }
+      if (localSettings.value.language === 'vi-VN') {
+        return t('general.vietnamese');
+      }
+      return t('general.simplifiedChinese');
+    });
 
     const closeLanguageMenu = () => {
       languageMenuOpen.value = false;

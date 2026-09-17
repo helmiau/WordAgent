@@ -1,23 +1,53 @@
 <template>
   <form class="user-question" :class="{ answered: readonly }" @submit.prevent="submit">
-    <div class="question-heading">{{ $t('chat.clarificationTitle') }}</div>
-    <p class="question-hint">{{ $t('chat.clarificationHint') }}</p>
+    <div class="question-heading">
+      {{ $t('chat.clarificationTitle') }}
+    </div>
+    <p class="question-hint">
+      {{ $t('chat.clarificationHint') }}
+    </p>
     <fieldset v-for="question in request.questions" :key="question.id" :disabled="disabled || readonly">
       <legend>{{ question.question }}</legend>
-      <label v-for="option in question.options.slice(0, 4)" :key="option" class="question-option" :class="{ selected: choices[question.id] === option }">
-        <input v-model="choices[question.id]" type="radio" :name="question.id" :value="option" />
+      <label
+        v-for="option in question.options.slice(0, 4)"
+        :key="option"
+        class="question-option"
+        :class="{ selected: choices[question.id] === option }"
+      >
+        <input
+          v-model="choices[question.id]"
+          type="radio"
+          :name="question.id"
+          :value="option"
+        />
         <span>{{ option }}</span>
       </label>
       <label class="question-option" :class="{ selected: choices[question.id] === null }">
-        <input v-model="choices[question.id]" type="radio" :name="question.id" :value="null" />
+        <input
+          v-model="choices[question.id]"
+          type="radio"
+          :name="question.id"
+          :value="null"
+        />
         <span>{{ $t('chat.clarificationCustom') }}</span>
       </label>
-      <textarea v-model="customAnswers[question.id]" class="question-custom" rows="2" maxlength="4000"
-        :aria-label="$t('chat.clarificationCustom')" :placeholder="$t('chat.clarificationPlaceholder')"
-        @focus="choices[question.id] = null" @input="choices[question.id] = null"
+      <textarea
+        v-model="customAnswers[question.id]"
+        class="question-custom"
+        rows="2"
+        maxlength="4000"
+        :aria-label="$t('chat.clarificationCustom')"
+        :placeholder="$t('chat.clarificationPlaceholder')"
+        @focus="choices[question.id] = null"
+        @input="choices[question.id] = null"
       ></textarea>
     </fieldset>
-    <button v-if="!readonly" class="question-submit" type="submit" :disabled="disabled || !canSubmit">
+    <button
+      v-if="!readonly"
+      class="question-submit"
+      type="submit"
+      :disabled="disabled || !canSubmit"
+    >
       {{ $t(disabled ? 'chat.clarificationSubmitting' : 'chat.clarificationContinue') }}
     </button>
   </form>
@@ -34,23 +64,6 @@ export default {
   },
   emits: ['answer'],
   data: () => ({ choices: {}, customAnswers: {} }),
-  watch: {
-    response: {
-      immediate: true,
-      handler(response) {
-        if (!response) return;
-        for (const question of this.request.questions) {
-          const answer = response.answers.find(item => item.id === question.id)?.answer;
-          if (answer === undefined) continue;
-          // Preserve the explicit custom choice on the live card.
-          if (this.choices[question.id] === null && (this.customAnswers[question.id] || '').trim() === answer) continue;
-          const isOption = question.options.slice(0, 4).includes(answer);
-          this.choices[question.id] = isOption ? answer : null;
-          this.customAnswers[question.id] = isOption ? '' : answer;
-        }
-      }
-    }
-  },
   computed: {
     answers() {
       return this.request.questions.map(question => ({
@@ -63,9 +76,34 @@ export default {
       return this.answers.length > 0 && this.answers.every(item => item.answer.length > 0 && item.answer.length <= 4000);
     }
   },
+  watch: {
+    response: {
+      immediate: true,
+      handler(response) {
+        if (!response) {
+          return;
+        }
+        for (const question of this.request.questions) {
+          const answer = response.answers.find(item => item.id === question.id)?.answer;
+          if (answer === undefined) {
+            continue;
+          }
+          // Preserve the explicit custom choice on the live card.
+          if (this.choices[question.id] === null && (this.customAnswers[question.id] || '').trim() === answer) {
+            continue;
+          }
+          const isOption = question.options.slice(0, 4).includes(answer);
+          this.choices[question.id] = isOption ? answer : null;
+          this.customAnswers[question.id] = isOption ? '' : answer;
+        }
+      }
+    }
+  },
   methods: {
     submit() {
-      if (!this.disabled && !this.readonly && this.canSubmit) this.$emit('answer', { answers: this.answers });
+      if (!this.disabled && !this.readonly && this.canSubmit) {
+        this.$emit('answer', { answers: this.answers });
+      }
     }
   }
 };

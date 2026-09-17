@@ -19,6 +19,7 @@ from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 from qfluentwidgets import setTheme, Theme
 
 from app.core.logging import get_logger
+from gui.i18n import get_locale, set_locale, subscribe_locale_changed, t
 
 IS_WINDOWS = platform.system() == "Windows"
 logger = get_logger(__name__)
@@ -74,46 +75,42 @@ def is_port_listening(port=58890):
 
 
 def ensure_wps_cloud_service():
-    """确保 wpscloudsvr 已启动并监听 58890 端口"""
+    """确保 wpscloudsvr 已启动并监听 58890 端口。
+
+    Only starts the service when WPS is actually installed. If WPS is not
+    installed, skip silently (debug log only) so users without WPS don't see
+    warnings or suffer a 10-second startup delay.
+    """
     if is_port_listening(58890):
         logger.info("wpscloudsvr 已在运行 (58890 端口已监听)")
         return True
 
-    logger.info("58890 端口未监听，正在启动 wpscloudsvr")
-
     svr_path = _find_wpscloudsvr()
-    if svr_path:
-        logger.info("找到 wpscloudsvr: %s", svr_path)
-        try:
-            if IS_WINDOWS:
-                CREATE_NO_WINDOW = 0x08000000
-                subprocess.Popen(
-                    [svr_path, "/jsapihttpserver", "ksowpscloudsvr://start=RelayHttpServer"],
-                    creationflags=CREATE_NO_WINDOW,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-            else:
-                subprocess.Popen(
-                    [svr_path, "/jsapihttpserver", "ksowpscloudsvr://start=RelayHttpServer"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-        except Exception as e:
-            logger.warning("启动 wpscloudsvr 异常: %s", e)
-    else:
-        logger.warning("未找到 wpscloudsvr，尝试系统协议唤起")
-        try:
-            if IS_WINDOWS:
-                os.startfile("ksoWPSCloudSvr://start=RelayHttpServer")
-            else:
-                subprocess.Popen(
-                    ["xdg-open", "ksoWPSCloudSvr://start=RelayHttpServer"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-        except Exception as e:
-            logger.warning("系统协议唤起失败: %s", e)
+    if not svr_path:
+        # WPS not installed — skip silently, no protocol wakeup, no waiting.
+        logger.debug("WPS not installed, skipping wpscloudsvr startup")
+        return False
+
+    logger.info("58890 端口未监听，正在启动 wpscloudsvr")
+    logger.info("找到 wpscloudsvr: %s", svr_path)
+    try:
+        if IS_WINDOWS:
+            CREATE_NO_WINDOW = 0x08000000
+            subprocess.Popen(
+                [svr_path, "/jsapihttpserver", "ksowpscloudsvr://start=RelayHttpServer"],
+                creationflags=CREATE_NO_WINDOW,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        else:
+            subprocess.Popen(
+                [svr_path, "/jsapihttpserver", "ksowpscloudsvr://start=RelayHttpServer"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+    except Exception as e:
+        logger.warning("启动 wpscloudsvr 异常: %s", e)
+        return False
 
     import time
 
@@ -144,15 +141,15 @@ def start_gui(base_path=None):
         window.set_tray_available(True)
 
         tray_menu = QMenu(window)
-        show_action = QAction("显示", tray_menu)
-        quit_action = QAction("退出文策AI", tray_menu)
+        show_action = QAction(t("tray.show"), tray_menu)
+        quit_action = QAction(t("tray.quit"), tray_menu)
         show_action.triggered.connect(window.show_from_tray)
         quit_action.triggered.connect(window.quit_from_tray)
         tray_menu.addAction(show_action)
         tray_menu.addAction(quit_action)
 
         tray_icon = QSystemTrayIcon(app_icon, qt_app)
-        tray_icon.setToolTip("文策AI")
+        tray_icon.setToolTip(t("tray.tooltip"))
         tray_icon.setContextMenu(tray_menu)
         tray_icon.activated.connect(
             lambda reason: (

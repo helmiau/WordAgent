@@ -22,6 +22,7 @@ from qfluentwidgets import (
     InfoBar,
     InfoBarPosition,
 )
+from gui.i18n import t
 
 from app.core.config import get_wence_data_dir
 from app.core.logging import get_logger
@@ -167,35 +168,19 @@ class OfficeInstallInterface(QWidget):
         layout.setContentsMargins(24, 20, 24, 24)
         layout.setSpacing(12)
 
-        title = SubtitleLabel("Microsoft Word 加载项", self)
-        layout.addWidget(title)
+        self._title_label = SubtitleLabel(t("office.title"), self)
+        layout.addWidget(self._title_label)
 
-        subtitle = CaptionLabel("管理 Microsoft Word 网页版和客户端加载项的安装与启用", self)
-        subtitle.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
-        layout.addWidget(subtitle)
+        self._subtitle_label = CaptionLabel(t("office.subtitle"), self)
+        self._subtitle_label.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
+        layout.addWidget(self._subtitle_label)
 
         card = CardWidget(self)
         card_layout = QVBoxLayout(card)
         card_layout.setContentsMargins(20, 16, 20, 16)
         card_layout.setSpacing(12)
 
-        self._usage_label = BodyLabel(
-            "安装证书：<br/>"
-            "1. 确保“启动 HTTPS 服务”。（进入本页面会自动启动）<br/>"
-            "2. 点击“安装证书”按钮，在系统弹出的证书界面依次点击：安装证书-&gt;本地计算机-&gt;将所有的证书都放入下列存储-&gt;浏览-&gt;受信任的根证书颁发机构，然后一路确定即可。<br/>"
-            "3. 点击“用浏览器打开”，如果没有不安全提示，代表证书安装成功；否则，重启后端服务软件再次点击“用浏览器打开”，如果依然有不安全提示，说明证书安装失败，请询问作者或自行安装证书。<br/><br/>"
-            "网页版使用方法：<br/>"
-            "1. 打开 <a href='https://word.cloud.microsoft/' style='color: #2563eb; text-decoration: underline;'>https://word.cloud.microsoft/</a> 并进入 Word 网页版。<br/>"
-            "2. 进入：开始-&gt;加载项-&gt;更多加载项-&gt;我的加载项-&gt;管理我的加载项-&gt;上传我的加载项<br/>"
-            "3. 上传下载好的 manifest.xml，完成加载。如果加载项界面未显示，请刷新页面。<br/><br/>"
-            "客户端使用方法：<br/>"
-            "1. 点击“下载 manifest.xml”保存一个空文件夹中。<br/>"
-            "2. 右键属性这个文件夹，进入“共享”选项卡，点击“共享”，选择“Everyone”，点击“共享”并记下网络路径。<br/>"
-            "3. 打开 Microsoft Word 客户端，进入：文件-&gt;选项-&gt;信任中心-&gt;信任中心设置-&gt;受信任的加载项目录，在“目录URL”中输入网络路径并点击添加目录，重启Word完成加载。<br/>"
-            "4. 如果加载项界面未显示，进入：文件-&gt;选项-&gt;自定义功能区，将开发工具添加到“主选项卡”中。点击Word上方的“开发工具”选项卡，点击加载项-&gt;共享文件夹-&gt;文策AI助手，即可使用加载项。<br/><br/>"
-            "【详细图文教程请访问 <a href='https://visresearch.github.io/WordAgent/' style='color: #2563eb; text-decoration: underline;'>https://visresearch.github.io/WordAgent/</a>】",
-            card,
-        )
+        self._usage_label = BodyLabel(t("office.usage"), card)
         self._usage_label.setTextFormat(Qt.RichText)
         self._usage_label.setTextInteractionFlags(Qt.TextBrowserInteraction)
         self._usage_label.setOpenExternalLinks(True)
@@ -208,23 +193,23 @@ class OfficeInstallInterface(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
 
-        self._download_btn = PushButton("下载 manifest.xml", card)
+        self._download_btn = PushButton(t("office.buttons.download"), card)
         self._download_btn.clicked.connect(self._on_download_manifest)
         btn_layout.addWidget(self._download_btn)
 
-        self._start_btn = PushButton("启动 HTTPS 服务", card)
+        self._start_btn = PushButton(t("office.buttons.start"), card)
         self._start_btn.clicked.connect(self._on_start_service)
         btn_layout.addWidget(self._start_btn)
 
-        self._install_cert_btn = PushButton("安装证书", card)
+        self._install_cert_btn = PushButton(t("office.buttons.installCert"), card)
         self._install_cert_btn.clicked.connect(self._on_install_cert)
         btn_layout.addWidget(self._install_cert_btn)
 
-        self._open_browser_btn = PushButton("用浏览器打开", card)
+        self._open_browser_btn = PushButton(t("office.buttons.openBrowser"), card)
         self._open_browser_btn.clicked.connect(self._on_open_browser)
         btn_layout.addWidget(self._open_browser_btn)
 
-        self._stop_btn = PushButton("关闭服务", card)
+        self._stop_btn = PushButton(t("office.buttons.stop"), card)
         self._stop_btn.clicked.connect(self._on_stop_service)
         btn_layout.addWidget(self._stop_btn)
 
@@ -235,18 +220,21 @@ class OfficeInstallInterface(QWidget):
         layout.addStretch()
 
         self._update_service_status()
+        from gui.i18n import subscribe_locale_changed
+
+        subscribe_locale_changed(self._retranslate)
         QTimer.singleShot(0, self._on_start_service)
 
     def _update_service_status(self):
         running = self._server is not None and self._server_thread is not None
         if running:
-            self._service_status_label.setText(f"服务状态：运行中（https://{self._host}:{self._port}）")
+            self._service_status_label.setText(t("office.status.running", host=self._host, port=self._port))
             self._service_status_label.setStyleSheet("color: #16a34a;")
             self._start_btn.setEnabled(False)
             self._open_browser_btn.setEnabled(True)
             self._stop_btn.setEnabled(True)
         else:
-            self._service_status_label.setText("服务状态：未启动")
+            self._service_status_label.setText(t("office.status.stopped"))
             self._service_status_label.setStyleSheet("color: #d97706;")
             self._start_btn.setEnabled(True)
             self._open_browser_btn.setEnabled(False)
@@ -256,8 +244,8 @@ class OfficeInstallInterface(QWidget):
         src_manifest = _get_resource_manifest()
         if not src_manifest:
             InfoBar.error(
-                title="下载失败",
-                content="未找到 gui/resources/manifest.xml",
+                title=t("office.infobar.downloadFailed.title"),
+                content=t("office.infobar.downloadFailed.contentMissing"),
                 parent=self,
                 position=InfoBarPosition.TOP,
                 duration=3500,
@@ -267,9 +255,9 @@ class OfficeInstallInterface(QWidget):
         default_path = str(Path.home() / "Desktop" / "manifest.xml")
         save_path, _ = QFileDialog.getSaveFileName(
             self,
-            "保存 manifest.xml",
+            t("office.dialog.saveManifest"),
             default_path,
-            "XML 文件 (*.xml)",
+            t("office.dialog.xmlFilter"),
         )
         if not save_path:
             return
@@ -277,8 +265,8 @@ class OfficeInstallInterface(QWidget):
         try:
             Path(save_path).write_bytes(src_manifest.read_bytes())
             InfoBar.success(
-                title="下载成功",
-                content=f"manifest.xml 已保存到：{save_path}",
+                title=t("office.infobar.downloadSuccess.title"),
+                content=t("office.infobar.downloadSuccess.content", path=save_path),
                 parent=self,
                 position=InfoBarPosition.TOP,
                 duration=3500,
@@ -298,7 +286,7 @@ class OfficeInstallInterface(QWidget):
         try:
             webbrowser.open(url)
             InfoBar.info(
-                title="已在浏览器中打开",
+                title=t("office.infobar.openBrowser.title"),
                 content="",
                 parent=self,
                 position=InfoBarPosition.TOP,
@@ -306,7 +294,7 @@ class OfficeInstallInterface(QWidget):
             )
         except Exception as e:
             InfoBar.error(
-                title="打开浏览器失败",
+                title=t("office.infobar.openBrowserFailed.title"),
                 content=str(e),
                 parent=self,
                 position=InfoBarPosition.TOP,
@@ -324,15 +312,15 @@ class OfficeInstallInterface(QWidget):
                 webbrowser.open(cert_file.as_uri())
 
             InfoBar.info(
-                title="已打开证书文件",
-                content=f"请按照本界面提示操作",
+                title=t("office.infobar.certOpened.title"),
+                content=t("office.infobar.certOpened.content"),
                 parent=self,
                 position=InfoBarPosition.TOP,
                 duration=5000,
             )
         except Exception as e:
             InfoBar.error(
-                title="打开证书失败，请手动找到证书文件并安装，证书路径：{cert_file}",
+                title=t("office.infobar.certFailed.title"),
                 content=str(e),
                 parent=self,
                 position=InfoBarPosition.TOP,
@@ -342,8 +330,8 @@ class OfficeInstallInterface(QWidget):
     def _on_start_service(self):
         if self._server is not None:
             InfoBar.warning(
-                title="提示",
-                content="HTTPS 服务已在运行",
+                title=t("office.infobar.serviceRunning.title"),
+                content=t("office.infobar.serviceRunning.content"),
                 parent=self,
                 position=InfoBarPosition.TOP,
                 duration=2500,
@@ -353,8 +341,8 @@ class OfficeInstallInterface(QWidget):
         dist_dir = _get_frontend_dist_dir()
         if not dist_dir:
             InfoBar.error(
-                title="启动失败",
-                content="未找到 microsoft_word_plugin/dist，请先构建前端",
+                title=t("office.infobar.startFailed.title"),
+                content=t("office.infobar.startFailed.contentMissingDist"),
                 parent=self,
                 position=InfoBarPosition.TOP,
                 duration=4000,
@@ -404,8 +392,8 @@ class OfficeInstallInterface(QWidget):
             self._server_thread = thread
             self._update_service_status()
             InfoBar.success(
-                title="启动成功",
-                content=f"HTTPS 服务已启动：https://{self._host}:{self._port}",
+                title=t("office.infobar.startSuccess.title"),
+                content=t("office.infobar.startSuccess.content", host=self._host, port=self._port),
                 parent=self,
                 position=InfoBarPosition.TOP,
                 duration=3500,
@@ -430,8 +418,8 @@ class OfficeInstallInterface(QWidget):
     def _on_stop_service(self):
         if self._server is None:
             InfoBar.warning(
-                title="提示",
-                content="HTTPS 服务未启动",
+                title=t("office.infobar.notRunning.title"),
+                content=t("office.infobar.notRunning.content"),
                 parent=self,
                 position=InfoBarPosition.TOP,
                 duration=2500,
@@ -448,20 +436,32 @@ class OfficeInstallInterface(QWidget):
             self._server_thread = None
             self._update_service_status()
             InfoBar.success(
-                title="已关闭",
-                content="HTTPS 服务已停止",
+                title=t("office.infobar.stopped.title"),
+                content=t("office.infobar.stopped.content"),
                 parent=self,
                 position=InfoBarPosition.TOP,
                 duration=3000,
             )
         except Exception as e:
             InfoBar.error(
-                title="关闭失败",
+                title=t("office.infobar.stopFailed.title"),
                 content=str(e),
                 parent=self,
                 position=InfoBarPosition.TOP,
                 duration=5000,
             )
+
+    def _retranslate(self, _locale: str = ""):
+        """Update all translatable labels on this page."""
+        self._title_label.setText(t("office.title"))
+        self._subtitle_label.setText(t("office.subtitle"))
+        self._usage_label.setText(t("office.usage"))
+        self._download_btn.setText(t("office.buttons.download"))
+        self._start_btn.setText(t("office.buttons.start"))
+        self._install_cert_btn.setText(t("office.buttons.installCert"))
+        self._open_browser_btn.setText(t("office.buttons.openBrowser"))
+        self._stop_btn.setText(t("office.buttons.stop"))
+        self._update_service_status()
 
     def closeEvent(self, event):
         """界面关闭时自动停止后台服务。"""

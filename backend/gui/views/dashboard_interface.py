@@ -10,15 +10,16 @@ from PySide6.QtCore import QObject, QPointF, QRunnable, QThreadPool, QTimer, Sig
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QGraphicsLineItem, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget
 from qfluentwidgets import BodyLabel, CaptionLabel, CardWidget, SegmentedWidget, StrongBodyLabel, TitleLabel
+from gui.i18n import t
 
 
 SERIES = (
-    ("inputTokens", "输入（未命中缓存）", QColor("#3b82f6")),
-    ("outputTokens", "输出", QColor("#22c55e")),
-    ("cachedTokens", "输入（命中缓存）", QColor("#a855f7")),
+    ("inputTokens", "dashboard.metrics.inputTokens", QColor("#3b82f6")),
+    ("outputTokens", "dashboard.metrics.outputTokens", QColor("#22c55e")),
+    ("cachedTokens", "dashboard.metrics.cachedTokens", QColor("#a855f7")),
 )
 
-METRIC_CARDS = SERIES + (("cacheHitRate", "缓存命中率", QColor("#f59e0b")),)
+METRIC_CARDS = SERIES + (("cacheHitRate", "dashboard.metrics.cacheHitRate", QColor("#f59e0b")),)
 
 
 class _UsageLoadSignals(QObject):
@@ -78,11 +79,15 @@ class _MetricCard(CardWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(3)
-        caption = CaptionLabel(title, self)
-        caption.setTextColor(color, color)
+        self._caption = CaptionLabel(title, self)
+        self._caption.setTextColor(color, color)
         self.value = StrongBodyLabel("0", self)
-        layout.addWidget(caption)
+        layout.addWidget(self._caption)
         layout.addWidget(self.value)
+
+    def setTitle(self, title: str):
+        """Update the card caption (used on language change)."""
+        self._caption.setText(title)
 
 
 class DashboardInterface(QWidget):
@@ -126,15 +131,16 @@ class DashboardInterface(QWidget):
         header = QHBoxLayout()
         title_col = QVBoxLayout()
         title_col.setSpacing(3)
-        title_col.addWidget(TitleLabel("Token 使用仪表盘", self))
-        subtitle = CaptionLabel("统计最近 文策AI token使用情况", self)
-        subtitle.setTextColor(QColor("#777777"), QColor("#aaaaaa"))
-        title_col.addWidget(subtitle)
+        self._title_label = TitleLabel(t("dashboard.title"), self)
+        title_col.addWidget(self._title_label)
+        self._subtitle_label = CaptionLabel(t("dashboard.subtitle"), self)
+        self._subtitle_label.setTextColor(QColor("#777777"), QColor("#aaaaaa"))
+        title_col.addWidget(self._subtitle_label)
         header.addLayout(title_col)
         header.addStretch(1)
 
         self._period_selector = SegmentedWidget(self)
-        for route_key, text in (("today", "当天"), ("7d", "7 天")):
+        for route_key, text in (("today", t("dashboard.period.today")), ("7d", t("dashboard.period.7d"))):
             self._period_selector.addItem(routeKey=route_key, text=text)
         self._period_selector.setCurrentItem("today")
         self._period_selector.currentItemChanged.connect(self._set_period)
@@ -144,9 +150,11 @@ class DashboardInterface(QWidget):
         metrics = QHBoxLayout()
         metrics.setSpacing(12)
         self._metric_cards: dict[str, _MetricCard] = {}
-        for key, title, color in METRIC_CARDS:
-            card = _MetricCard(title, color, self)
+        self._metric_title_keys: dict[str, str] = {}
+        for key, title_key, color in METRIC_CARDS:
+            card = _MetricCard(t(title_key), color, self)
             self._metric_cards[key] = card
+            self._metric_title_keys[key] = title_key
             metrics.addWidget(card, 1)
         root.addLayout(metrics)
 
@@ -155,9 +163,10 @@ class DashboardInterface(QWidget):
         chart_layout.setContentsMargins(14, 14, 14, 10)
         chart_layout.setSpacing(8)
         chart_header = QHBoxLayout()
-        chart_header.addWidget(StrongBodyLabel("使用趋势", chart_card))
+        self._chart_title_label = StrongBodyLabel(t("dashboard.chart.trend"), chart_card)
+        chart_header.addWidget(self._chart_title_label)
         chart_header.addStretch(1)
-        self._status = BodyLabel("正在加载…", chart_card)
+        self._status = BodyLabel(t("dashboard.status.loading"), chart_card)
         self._status.setStyleSheet("color: #888888;")
         chart_header.addWidget(self._status)
         chart_layout.addLayout(chart_header)
@@ -189,6 +198,26 @@ class DashboardInterface(QWidget):
         )
         self._detail_label.hide()
         root.addWidget(chart_card, 1)
+
+        from gui.i18n import subscribe_locale_changed
+
+        subscribe_locale_changed(self._retranslate)
+
+    def _retranslate(self, _locale: str = ""):
+        """Update all translatable labels on this page after a language change."""
+        self._title_label.setText(t("dashboard.title"))
+        self._subtitle_label.setText(t("dashboard.subtitle"))
+        self._chart_title_label.setText(t("dashboard.chart.trend"))
+        for route_key, text in (("today", t("dashboard.period.today")), ("7d", t("dashboard.period.7d"))):
+            item = self._period_selector.widget(route_key)
+            if item is not None:
+                item.setText(text)
+        # METRIC_CARDS now stores i18n keys; resolve t() for each card.
+        for key, card in self._metric_cards.items():
+            title_key = self._metric_title_keys.get(key)
+            if title_key is not None:
+                card.setTitle(t(title_key))
+        self.refresh()
 
     def _set_period(self, period: str):
         if self._period == period:
@@ -284,11 +313,11 @@ class DashboardInterface(QWidget):
         if request_id != self._load_request_id or period != self._period:
             return
         if not isinstance(payload, dict):
-            self._on_load_failed(request_id, period, "Token 使用数据格式无效")
+            self._on_load_failed(request_id, period, t("dashboard.status.invalid"))
             return
         self._render(payload)
         has_usage = any(int(value or 0) for value in payload.get("totals", {}).values())
-        self._status.setText("悬停图表可查看明细" if has_usage else "暂无使用记录")
+        self._status.setText(t("dashboard.status.hover") if has_usage else t("dashboard.status.empty"))
 
     @Slot(int, str, str)
     def _on_load_failed(self, request_id: int, period: str, error: str):
@@ -296,7 +325,7 @@ class DashboardInterface(QWidget):
         if request_id != self._load_request_id or period != self._period:
             return
         self._render(self._zero_payload())
-        self._status.setText("数据读取失败，请稍后重试")
+        self._status.setText(t("dashboard.status.failed"))
         self._status.setStyleSheet("color: #dc2626;")
         self._status.setToolTip(error)
 
@@ -340,7 +369,7 @@ class DashboardInterface(QWidget):
         for axis in list(self._chart.axes()):
             self._chart.removeAxis(axis)
         if not self._points:
-            self._chart.setTitle("暂无 Token 使用数据")
+            self._chart.setTitle(t("dashboard.chart.empty"))
             return
         self._chart.setTitle("")
 
@@ -415,9 +444,9 @@ class DashboardInterface(QWidget):
             label = raw_time
         text = (
             f"<b>{label}</b><br>"
-            f"<span style='color:#3b82f6'>● 输入（未命中缓存）：</span>{int(item.get('inputTokens', 0)):,}<br>"
-            f"<span style='color:#22c55e'>● 输出：</span>{int(item.get('outputTokens', 0)):,}<br>"
-            f"<span style='color:#a855f7'>● 输入（命中缓存）：</span>{int(item.get('cachedTokens', 0)):,}"
+            f"<span style='color:#3b82f6'>● {t('dashboard.tooltip.input')}</span>{int(item.get('inputTokens', 0)):,}<br>"
+            f"<span style='color:#22c55e'>● {t('dashboard.tooltip.output')}</span>{int(item.get('outputTokens', 0)):,}<br>"
+            f"<span style='color:#a855f7'>● {t('dashboard.tooltip.cached')}</span>{int(item.get('cachedTokens', 0)):,}"
         )
         self._detail_label.setText(text)
         self._detail_label.adjustSize()

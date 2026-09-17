@@ -260,7 +260,12 @@
                     @click="testConnection(pIndex, model)"
                   >
                     <span v-if="isTestingModel(pIndex, model.id)" class="connection-spinner" aria-hidden="true"></span>
-                    <img v-else :src="iconConnect" class="action-icon" alt="" />
+                    <img
+                      v-else
+                      :src="iconConnect"
+                      class="action-icon"
+                      alt=""
+                    />
                   </button>
                   <button
                     type="button"

@@ -1,13 +1,36 @@
 import { inject, ref } from 'vue';
 import enUS from '../locales/en-US.js';
+import idID from '../locales/id-ID.js';
 import zhCN from '../locales/zh-CN.js';
+import jaJP from '../locales/ja-JP.js';
+import koKR from '../locales/ko-KR.js';
+import viVN from '../locales/vi-VN.js';
 
 const STORAGE_KEY = 'wence-interface-language';
-const messages = { 'en-US': enUS, 'zh-CN': zhCN };
+const messages = { 'en-US': enUS, 'id-ID': idID, 'zh-CN': zhCN, 'ja-JP': jaJP, 'ko-KR': koKR, 'vi-VN': viVN };
 const I18N_KEY = Symbol('wence-i18n');
 
 function normalizeLocale(value) {
-  return String(value || '').toLowerCase().startsWith('en') ? 'en-US' : 'zh-CN';
+  if (!value) {
+    return 'en-US';
+  }
+  const normalized = String(value).toLowerCase();
+  if (normalized === 'en-us' || normalized.startsWith('en')) {
+    return 'en-US';
+  }
+  if (normalized === 'id-id' || normalized === 'id' || normalized.startsWith('id')) {
+    return 'id-ID';
+  }
+  if (normalized === 'ja-jp' || normalized === 'ja' || normalized.startsWith('ja')) {
+    return 'ja-JP';
+  }
+  if (normalized === 'ko-kr' || normalized === 'ko' || normalized.startsWith('ko')) {
+    return 'ko-KR';
+  }
+  if (normalized === 'vi-vn' || normalized === 'vi' || normalized.startsWith('vi')) {
+    return 'vi-VN';
+  }
+  return 'zh-CN';
 }
 
 function initialLocale() {

@@ -5,6 +5,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from qfluentwidgets import SubtitleLabel, CaptionLabel, CardWidget
+from gui.i18n import t
 
 
 class InstallInterface(QWidget):
@@ -19,10 +20,10 @@ class InstallInterface(QWidget):
         layout.setSpacing(12)
 
         # --- 标题栏 ---
-        title = SubtitleLabel("WPS Word加载项", self)
+        title = SubtitleLabel(t("wps.title"), self)
         layout.addWidget(title)
 
-        subtitle = CaptionLabel("管理 WPS Office 加载项的安装与卸载", self)
+        subtitle = CaptionLabel(t("wps.subtitle"), self)
         subtitle.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
         layout.addWidget(subtitle)
 

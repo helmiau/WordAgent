@@ -263,7 +263,7 @@ export default {
       try {
         const data = await api.getSettings();
         if (data) {
-          settings.language = data.language === 'en-US' ? 'en-US' : 'zh-CN';
+          settings.language = ['en-US', 'id-ID'].includes(data.language) ? data.language : 'zh-CN';
           setLocale(settings.language);
           if (data.showPanelOnStart !== undefined) {
             settings.showPanelOnStart = data.showPanelOnStart;

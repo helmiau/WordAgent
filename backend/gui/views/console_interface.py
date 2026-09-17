@@ -27,6 +27,7 @@ from qfluentwidgets import (
     InfoBar,
     InfoBarPosition,
 )
+from gui.i18n import t
 
 
 # ────────────────────────────────────────────────────────────
@@ -124,30 +125,30 @@ class ConsoleInterface(QWidget):
         header = QHBoxLayout()
         header.setSpacing(10)
 
-        title = SubtitleLabel("终端", self)
-        header.addWidget(title)
+        self._title_label = SubtitleLabel(t("console.title"), self)
+        header.addWidget(self._title_label)
         header.addStretch(1)
 
-        self._openLogDirBtn = PushButton(FluentIcon.FOLDER, "日志文件夹", self)
-        self._openLogDirBtn.setToolTip("打开日志文件夹")
+        self._openLogDirBtn = PushButton(FluentIcon.FOLDER, t("console.buttons.logDir"), self)
+        self._openLogDirBtn.setToolTip(t("console.tooltips.logDir"))
         self._openLogDirBtn.clicked.connect(self._openLogDir)
         header.addWidget(self._openLogDirBtn)
 
-        self._clearBtn = PushButton(FluentIcon.DELETE, "清空", self)
-        self._clearBtn.setToolTip("清空日志")
+        self._clearBtn = PushButton(FluentIcon.DELETE, t("console.buttons.clear"), self)
+        self._clearBtn.setToolTip(t("console.tooltips.clear"))
         self._clearBtn.clicked.connect(self._clearLog)
         header.addWidget(self._clearBtn)
 
-        self._scrollBtn = PushButton(FluentIcon.DOWN, "底部", self)
-        self._scrollBtn.setToolTip("滚动到底部")
+        self._scrollBtn = PushButton(FluentIcon.DOWN, t("console.buttons.bottom"), self)
+        self._scrollBtn.setToolTip(t("console.tooltips.bottom"))
         self._scrollBtn.clicked.connect(self._scrollToBottom)
         header.addWidget(self._scrollBtn)
 
         layout.addLayout(header)
 
-        hint = CaptionLabel("显示应用运行过程中的所有日志输出", self)
-        hint.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
-        layout.addWidget(hint)
+        self._hint_label = CaptionLabel(t("console.hint"), self)
+        self._hint_label.setTextColor(QColor("#888888"), QColor("#aaaaaa"))
+        layout.addWidget(self._hint_label)
 
         # --- 日志区（包裹在 CardWidget 中） ---
         card = CardWidget(self)
@@ -179,8 +180,21 @@ class ConsoleInterface(QWidget):
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._pollBuffer)
         self._timer.start(100)
-
         self._pollBuffer()
+        from gui.i18n import subscribe_locale_changed
+
+        subscribe_locale_changed(self._retranslate)
+
+    def _retranslate(self, _locale: str = ""):
+        """Update all translatable labels on this page."""
+        self._title_label.setText(t("console.title"))
+        self._hint_label.setText(t("console.hint"))
+        self._openLogDirBtn.setText(t("console.buttons.logDir"))
+        self._openLogDirBtn.setToolTip(t("console.tooltips.logDir"))
+        self._clearBtn.setText(t("console.buttons.clear"))
+        self._clearBtn.setToolTip(t("console.tooltips.clear"))
+        self._scrollBtn.setText(t("console.buttons.bottom"))
+        self._scrollBtn.setToolTip(t("console.tooltips.bottom"))
 
     def _pollBuffer(self):
         if self._buf is None:
@@ -237,7 +251,7 @@ class ConsoleInterface(QWidget):
                 raise RuntimeError(f"无法打开目录：{log_dir}")
         except Exception as e:
             InfoBar.error(
-                title="打开日志文件夹失败",
+                title=t("console.error.openLogDir"),
                 content=str(e),
                 parent=self,
                 position=InfoBarPosition.TOP,

@@ -55,7 +55,9 @@ test('custom answer replaces a selected option; blank answers and repeated submi
 test('resume transport keeps session and correlated answers in the chat request', async t => {
   const oldWindow = globalThis.window;
   globalThis.window = {};
-  t.after(() => { globalThis.window = oldWindow; });
+  t.after(() => {
+    globalThis.window = oldWindow; 
+  });
   t.mock.method(wsManager, 'connect', async () => {});
   t.mock.method(wsManager, '_armIdleTimeout', () => {});
   const sent = [];
@@ -74,13 +76,17 @@ const paneScript = paneSource.match(/<script>([\s\S]*?)<\/script>/)[1].replace(/
 function chatPane(t, apiOverrides = {}) {
   const previousWindow = globalThis.window;
   globalThis.window = { dispatchEvent() {} };
-  t.after(() => { globalThis.window = previousWindow; });
+  t.after(() => {
+    globalThis.window = previousWindow; 
+  });
   t.mock.method(console, 'log', () => {});
   t.mock.method(console, 'warn', () => {});
   t.mock.method(console, 'error', () => {});
   const streams = [];
   const api = {
-    chatStream(message, options) { streams.push(options); return { abort() {} }; },
+    chatStream(message, options) {
+      streams.push(options); return { abort() {} }; 
+    },
     getSession: async () => ({ success: true, data: { pendingQuestion: null } }),
     ...apiOverrides
   };
@@ -92,8 +98,12 @@ function chatPane(t, apiOverrides = {}) {
     $refs: { chatMessages: { $refs: { messagesContainer: container } } },
     $nextTick: callback => Promise.resolve().then(callback)
   };
-  for (const [name, method] of Object.entries(pane.methods)) vm[name] = method.bind(vm);
-  vm.scrollToBottom = () => { vm.scrollCalls++; };
+  for (const [name, method] of Object.entries(pane.methods)) {
+    vm[name] = method.bind(vm);
+  }
+  vm.scrollToBottom = () => {
+    vm.scrollCalls++; 
+  };
   return { vm, streams, container };
 }
 const pendingQuestion = () => ({ type: 'ask_user', questions: [{ id: 'i:0', question: '采用哪种风格？', options: ['正式', '轻松'] }] });
@@ -157,7 +167,9 @@ test('submitting keeps the question card and selected answer while preserving ea
 
 test('failed resume restores the question while keeping both old and newly streamed content', async t => {
   const request = pendingQuestion();
-  const { vm, streams } = chatPane(t, { getSession: async () => { throw new Error('offline'); } });
+  const { vm, streams } = chatPane(t, { getSession: async () => {
+    throw new Error('offline'); 
+  } });
   const events = pauseWithHistory(vm, streams);
   events.onMessage(request);
   events.onComplete();
@@ -175,7 +187,9 @@ test('failed resume restores the question while keeping both old and newly strea
 
 test('late history response cannot replace messages generated while the fetch was pending', async t => {
   let resolveHistory;
-  const { vm, streams } = chatPane(t, { getSession: () => new Promise(resolve => { resolveHistory = resolve; }) });
+  const { vm, streams } = chatPane(t, { getSession: () => new Promise(resolve => {
+    resolveHistory = resolve; 
+  }) });
   const loading = vm.loadSessionMessages('session-a');
   const events = pauseWithHistory(vm, streams);
   events.onMessage(pendingQuestion());
@@ -190,7 +204,9 @@ test('late history response cannot replace messages generated while the fetch wa
 
 test('a stale pending-question fetch cannot overwrite a newer question', async t => {
   let resolveQuestion;
-  const { vm, streams } = chatPane(t, { getSession: () => new Promise(resolve => { resolveQuestion = resolve; }) });
+  const { vm, streams } = chatPane(t, { getSession: () => new Promise(resolve => {
+    resolveQuestion = resolve; 
+  }) });
   const events = pauseWithHistory(vm, streams);
   const refreshing = vm.refreshPendingQuestion('session-a');
   const request = pendingQuestion();
@@ -199,7 +215,6 @@ test('a stale pending-question fetch cannot overwrite a newer question', async t
   await refreshing;
   assert.equal(vm.pendingQuestions['session-a'], request);
 });
-
 
 test('answered cards restore option or custom answer and cannot submit again', () => {
   const { vm, emitted, submit } = questionForm();
@@ -251,7 +266,6 @@ test('legacy pending question is appended to history without replacing previous 
   vm.syncQuestionRecords('session-a');
   assert.equal(vm.messages[0].contentParts.length, 2);
 });
-
 
 test('rendered cards retain options, disable confirmed answers and remove only the submit button', async () => {
   const renderCard = async props => {

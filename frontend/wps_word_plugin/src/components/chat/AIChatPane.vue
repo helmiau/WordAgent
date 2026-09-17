@@ -8,10 +8,10 @@
         ref="chatMessages"
         :messages="messages"
         :question-busy="refreshingQuestion"
-        @answer-question="answerQuestion"
         :is-loading="isLoading"
         :has-history="hasHistory"
         :history-loaded="historyLoaded"
+        @answer-question="answerQuestion"
         @load-history="loadAndShowHistory"
         @insert-to-word="insertToWord"
         @copy="copyToClipboard"
@@ -182,7 +182,9 @@ export default {
       this.refreshingQuestion = true;
       try {
         const result = await api.getSession(sessionId);
-        if (version !== (this.questionVersions[sessionId] || 0)) return;
+        if (version !== (this.questionVersions[sessionId] || 0)) {
+          return;
+        }
         if (result.success && result.data) {
           this.pendingQuestions[sessionId] = result.data.pendingQuestion || null;
         } else if (fallback && !this.pendingQuestions[sessionId]) {
@@ -202,7 +204,9 @@ export default {
     // Question cards live in the transcript, including after resume and history reload.
     syncQuestionRecords(sessionId) {
       const messages = sessionId === this.currentSessionId ? this.messages : this._streamingCache[sessionId];
-      if (!messages) return;
+      if (!messages) {
+        return;
+      }
       const pending = this.pendingQuestions[sessionId];
       const answers = new Map();
       for (const message of messages) {
@@ -215,7 +219,9 @@ export default {
       let foundPending = false;
       for (const message of messages) {
         for (const part of message.contentParts || []) {
-          if (part.type !== 'ask_user') continue;
+          if (part.type !== 'ask_user') {
+            continue;
+          }
           part.pending = !!pending && part.request.questions.every(question =>
             pending.questions.some(item => item.id === question.id));
           if (part.pending) {
@@ -232,20 +238,30 @@ export default {
       if (pending && !foundPending) {
         const last = messages[messages.length - 1];
         const message = last?.role === 'assistant' ? last : { role: 'assistant', content: '', contentParts: [] };
-        if (message !== last) messages.push(message);
+        if (message !== last) {
+          messages.push(message);
+        }
         message.contentParts ||= message.content ? [{ type: 'text', content: message.content }] : [];
         message.contentParts.push({ type: 'ask_user', request: pending, pending: true });
       }
     },
 
     answerQuestion(response) {
-      if (this.isLoading || this.refreshingQuestion) return;
+      if (this.isLoading || this.refreshingQuestion) {
+        return;
+      }
       const pending = this.pendingQuestions[this.currentSessionId];
-      if (!pending) return;
-      if (!Array.isArray(response?.answers) || response.answers.length !== pending.questions.length) return;
+      if (!pending) {
+        return;
+      }
+      if (!Array.isArray(response?.answers) || response.answers.length !== pending.questions.length) {
+        return;
+      }
       if (!pending.questions.every(question => response.answers.some(item =>
         item.id === question.id && typeof item.answer === 'string' && item.answer.trim() && item.answer.length <= 4000
-      ))) return;
+      ))) {
+        return;
+      }
       const text = pending.questions.map(question => {
         const answer = response.answers.find(item => item.id === question.id)?.answer || '';
         return `${question.question}\n${answer}`;
@@ -764,7 +780,9 @@ export default {
         return;
       }
 
-      if (this.isLoading && this._streamingSessionId === targetSessionId) return;
+      if (this.isLoading && this._streamingSessionId === targetSessionId) {
+        return;
+      }
       const transcriptVersion = this.transcriptVersion;
 
       console.log('[加载历史] 开始加载, sessionId:', targetSessionId);
@@ -1219,7 +1237,9 @@ export default {
      * 处理用户发送消息（由 ChatInput 触发）
      */
     async handleSend(userMessage) {
-      if (this.isLoading || this.pendingQuestions[this.currentSessionId]) return;
+      if (this.isLoading || this.pendingQuestions[this.currentSessionId]) {
+        return;
+      }
       // 确保有会话
       const sessionId = await this.ensureSession();
       if (!sessionId) {
@@ -1340,32 +1360,44 @@ export default {
             failureMessage = t('chat.networkError', { error: errMsg });
           }
           aiMsg.contentParts.push({ type: 'status', content: failureMessage });
-          if (!aiMsg.content) aiMsg.content = failureMessage;
+          if (!aiMsg.content) {
+            aiMsg.content = failureMessage;
+          }
           this.isLoading = false;
-          if (userResponse) this.refreshPendingQuestion(streamSessionId, pendingQuestion);
+          if (userResponse) {
+            this.refreshPendingQuestion(streamSessionId, pendingQuestion);
+          }
           this._streamingSessionId = null;
           this.currentStreamCtrl = null;
           if (aiMsg.thinking) {
             aiMsg.thinkingDone = true;
           }
-          if (!this.pendingQuestions[streamSessionId] && !pendingQuestion) delete this._streamingCache[streamSessionId];
+          if (!this.pendingQuestions[streamSessionId] && !pendingQuestion) {
+            delete this._streamingCache[streamSessionId];
+          }
           this.scrollToBottom();
         },
 
         onComplete: () => {
           this.isLoading = false;
-          if (userResponse && !this.pendingQuestions[streamSessionId]) this.refreshPendingQuestion(streamSessionId);
+          if (userResponse && !this.pendingQuestions[streamSessionId]) {
+            this.refreshPendingQuestion(streamSessionId);
+          }
           this._streamingSessionId = null;
 
           if (aiMsg.thinking) {
             aiMsg.thinkingDone = true;
           }
 
-          if (!this.pendingQuestions[streamSessionId]) this.scrollToBottom();
+          if (!this.pendingQuestions[streamSessionId]) {
+            this.scrollToBottom();
+          }
           window.dispatchEvent(new CustomEvent('session-created'));
 
           // 清理缓存
-          if (!this.pendingQuestions[streamSessionId]) delete this._streamingCache[streamSessionId];
+          if (!this.pendingQuestions[streamSessionId]) {
+            delete this._streamingCache[streamSessionId];
+          }
         }
       });
 
@@ -1384,13 +1416,21 @@ export default {
         const scrollTop = container?.scrollTop;
         this.questionVersions[streamSessionId] = (this.questionVersions[streamSessionId] || 0) + 1;
         this.pendingQuestions[streamSessionId] = data;
-        if (this.currentSessionId === streamSessionId) this._streamingCache[streamSessionId] = this.messages;
+        if (this.currentSessionId === streamSessionId) {
+          this._streamingCache[streamSessionId] = this.messages;
+        }
         const text = data.questions.map(item => item.question).join('\n');
         // Keep all earlier text, tool records, and thinking on the same message.
         msg.content += `${msg.content ? '\n\n' : ''}${text}`;
         msg.contentParts.push({ type: 'ask_user', request: data, pending: true });
-        if (msg.thinking) msg.thinkingDone = true;
-        if (container) this.$nextTick(() => { container.scrollTop = scrollTop; });
+        if (msg.thinking) {
+          msg.thinkingDone = true;
+        }
+        if (container) {
+          this.$nextTick(() => {
+            container.scrollTop = scrollTop; 
+          });
+        }
         return;
       }
 

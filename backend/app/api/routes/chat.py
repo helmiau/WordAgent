@@ -731,6 +731,7 @@ async def _run_ws_stream(
 
     for _attempt in range(1):
         try:
+
             async def _on_idle_warn():
                 # 60s 没有 chunk：给前端一个轻提示，避免用户以为卡死
                 try:

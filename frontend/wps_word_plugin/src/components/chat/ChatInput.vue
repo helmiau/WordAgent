@@ -382,7 +382,9 @@ export default {
   },
   computed: {
     inputPlaceholder() {
-      if (this.pendingQuestion) return t('chat.clarificationInputHint');
+      if (this.pendingQuestion) {
+        return t('chat.clarificationInputHint');
+      }
       if (this.mode === 'ask') {
         return t('chat.askPlaceholder');
       }
